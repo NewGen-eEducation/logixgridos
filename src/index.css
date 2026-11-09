@@ -1,0 +1,1137 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Plus Jakarta Sans', 'Noto Sans Telugu', "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #000000;
+    color: #f4f4f5;
+    overflow-x: hidden;
+  }
+  
+  .font-mono,
+  .tabular-nums {
+    font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* NewGen eEducation: Red 'e' animation */
+@keyframes red-e-pulse {
+  0%, 100% {
+    color: #ef4444;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.75), 0 0 16px rgba(239, 68, 68, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    color: #ff3b30;
+    text-shadow: 0 0 18px rgba(255, 59, 48, 0.95), 0 0 28px rgba(255, 59, 48, 0.65);
+    transform: scale(1.15) translateY(-1px);
+  }
+}
+
+.animate-red-e {
+  display: inline-block;
+  animation: red-e-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  color: #ef4444;
+}
+
+/* 3-Second Round Orbit & Pulse Animations for Red App Icon */
+@keyframes round-spin-3s {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes round-pulse-wave-3s {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  65% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-scale {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-scale {
+  animation: fade-in-scale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-round-pulse-3s {
+  animation: round-pulse-wave-3s 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes border-glow-pulse-3s {
+  0%, 100% {
+    opacity: 0.4;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 16px rgba(255, 59, 48, 0.85), 0 0 24px rgba(239, 68, 68, 0.4);
+  }
+}
+
+.animate-border-glow-pulse-3s {
+  animation: border-glow-pulse-3s 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* Lock screen shake animation on wrong PIN */
+@keyframes lock-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.animate-shake {
+  animation: lock-shake 0.4s ease-in-out;
+}
+
+/* iOS Dark sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* iOS Safe Area Padding */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* =========================================================================
+   THEME STYLES ENGINE (Midnight, Light, Navy, Emerald, Purple, Amber)
+   ========================================================================= */
+
+/* 1. EXECUTIVE LIGHT THEME */
+html[data-theme="light"],
+body[data-theme="light"],
+[data-theme="light"] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Light Theme: Surface & Card Backgrounds */
+[data-theme="light"] .bg-\[\#000000\],
+[data-theme="light"] [class*="bg-[#000000]"] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] header,
+[data-theme="light"] [class*="bg-[#121214]"],
+[data-theme="light"] .bg-\[\#121214\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] [class*="bg-[#161618]"],
+[data-theme="light"] .bg-\[\#161618\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] [class*="bg-[#1c1c1e]"],
+[data-theme="light"] .bg-\[\#1c1c1e\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Explorer Cards, Inputs and Subtab Containers */
+[data-theme="light"] [class*="bg-[#1c1c1f]"],
+[data-theme="light"] [class*="bg-[#1c1c20]"],
+[data-theme="light"] [class*="bg-[#18181b]"],
+[data-theme="light"] [class*="bg-[#161619]"],
+[data-theme="light"] [class*="bg-[#101012]"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Inactive Subtab Buttons in Explorer: Local Files, App Store, Digital Classes, App Tables */
+[data-theme="light"] [class*="bg-[#181a24]"],
+[data-theme="light"] [class*="bg-[#16221c]"],
+[data-theme="light"] [class*="bg-[#241618]"],
+[data-theme="light"] [class*="bg-[#1f1627]"] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+[data-theme="light"] [class*="bg-[#181a24]"]:hover,
+[data-theme="light"] [class*="bg-[#16221c]"]:hover,
+[data-theme="light"] [class*="bg-[#241618]"]:hover,
+[data-theme="light"] [class*="bg-[#1f1627]"]:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Explorer Sub-Tabs Bar Gradient */
+[data-theme="light"] [class*="from-[#16161a]"] {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Digital Classes Channel Banner in Light Theme */
+[data-theme="light"] [class*="from-[#20080b]"] {
+  background: linear-gradient(to right, #fef2f2, #fff1f2, #ffffff) !important;
+  border-color: #fecdd3 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* App Tables & Registers Banner in Light Theme */
+[data-theme="light"] [class*="from-[#16231c]"] {
+  background: linear-gradient(to right, #ecfdf5, #f0fdf4, #ffffff) !important;
+  border-color: #a7f3d0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* About Us Hero and Pillars in Light Theme */
+[data-theme="light"] [class*="from-[#25080c]"],
+[data-theme="light"] [class*="from-[#1e0a12]"] {
+  background: linear-gradient(135deg, #fff1f2, #ffffff, #fef2f2) !important;
+  border-color: #fecdd3 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] [class*="from-[#131b24]"] {
+  background: linear-gradient(135deg, #eff6ff, #ffffff, #f0fdf4) !important;
+  border-color: #bfdbfe !important;
+}
+
+[data-theme="light"] [class*="bg-[#242426]"],
+[data-theme="light"] [class*="bg-[#222226]"],
+[data-theme="light"] [class*="bg-[#28282c]"],
+[data-theme="light"] [class*="bg-[#2c2c2e]"],
+[data-theme="light"] [class*="bg-[#202024]"],
+[data-theme="light"] [class*="bg-[#242428]"],
+[data-theme="light"] .bg-\[\#242426\],
+[data-theme="light"] .bg-\[\#2c2c2e\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] [class*="bg-[#141416]"],
+[data-theme="light"] .bg-\[\#141416\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] [class*="hover:bg-[#3a3a3c]"]:hover,
+[data-theme="light"] [class*="hover:bg-[#38383c]"]:hover,
+[data-theme="light"] [class*="hover:bg-[#2c2c2e]"]:hover,
+[data-theme="light"] [class*="hover:bg-[#28282c]"]:hover,
+[data-theme="light"] [class*="hover:bg-[#242428]"]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] [class*="bg-white/5"] {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+[data-theme="light"] [class*="bg-white/10"] {
+  background-color: rgba(15, 23, 42, 0.07) !important;
+}
+[data-theme="light"] [class*="bg-white/15"] {
+  background-color: rgba(15, 23, 42, 0.1) !important;
+}
+[data-theme="light"] [class*="bg-white/20"] {
+  background-color: rgba(15, 23, 42, 0.14) !important;
+}
+[data-theme="light"] [class*="hover:bg-white/5"]:hover,
+[data-theme="light"] [class*="hover:bg-white/10"]:hover {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+}
+[data-theme="light"] .bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+/* Light Theme: Table & Header Styling */
+[data-theme="light"] table {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] thead,
+[data-theme="light"] thead tr {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] th span,
+[data-theme="light"] th div {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] td {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] tbody tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+/* Light Theme: Headings, Titles and Text Contrast */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-zinc-100,
+[data-theme="light"] .text-zinc-200 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-zinc-300,
+[data-theme="light"] .text-zinc-400 {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-zinc-500,
+[data-theme="light"] .text-zinc-600 {
+  color: #64748b !important;
+}
+
+/* Light Theme: Borders & Dividers */
+[data-theme="light"] [class*="border-white/5"],
+[data-theme="light"] [class*="border-white/10"],
+[data-theme="light"] [class*="border-white/15"],
+[data-theme="light"] [class*="border-white/20"] {
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] [class*="divide-white"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light Theme: Inputs & Controls */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Ensure colored action buttons and badges always keep crisp white text and white icons */
+[data-theme="light"] .bg-blue-600,
+[data-theme="light"] .bg-blue-500,
+[data-theme="light"] .bg-emerald-600,
+[data-theme="light"] .bg-emerald-500,
+[data-theme="light"] .bg-rose-600,
+[data-theme="light"] .bg-rose-500,
+[data-theme="light"] .bg-red-600,
+[data-theme="light"] .bg-red-500,
+[data-theme="light"] .bg-purple-600,
+[data-theme="light"] .bg-indigo-600,
+[data-theme="light"] .bg-\[\#0a84ff\] {
+  color: #ffffff !important;
+}
+[data-theme="light"] .bg-blue-600 *,
+[data-theme="light"] .bg-blue-500 *,
+[data-theme="light"] .bg-emerald-600 *,
+[data-theme="light"] .bg-emerald-500 *,
+[data-theme="light"] .bg-rose-600 *,
+[data-theme="light"] .bg-rose-500 *,
+[data-theme="light"] .bg-red-600 *,
+[data-theme="light"] .bg-purple-600 *,
+[data-theme="light"] .bg-\[\#0a84ff\] * {
+  color: #ffffff !important;
+}
+
+/* Brand red 'e' remains red */
+[data-theme="light"] .animate-red-e,
+[data-theme="light"] .text-red-500 {
+  color: #ef4444 !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18) !important;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.35) !important;
+}
+
+
+/* 2. NAVY SLATE THEME (Govt & Institutional) */
+html[data-theme="navy"],
+body[data-theme="navy"],
+[data-theme="navy"] {
+  background-color: #080e1e !important;
+  color: #f0f9ff !important;
+}
+[data-theme="navy"] body,
+[data-theme="navy"] .bg-\[\#000000\] {
+  background-color: #080e1e !important;
+}
+[data-theme="navy"] .bg-\[\#121214\],
+[data-theme="navy"] .bg-\[\#121214\]\/85 {
+  background-color: #0c152d !important;
+  border-color: rgba(56, 189, 248, 0.15) !important;
+}
+[data-theme="navy"] .bg-\[\#161618\] {
+  background-color: #101c3d !important;
+  border-color: rgba(56, 189, 248, 0.18) !important;
+}
+[data-theme="navy"] .bg-\[\#1c1c1e\] {
+  background-color: #14234c !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+}
+[data-theme="navy"] .bg-\[\#242426\] {
+  background-color: #1a2c5f !important;
+  border-color: rgba(56, 189, 248, 0.22) !important;
+}
+[data-theme="navy"] .bg-\[\#2c2c2e\] {
+  background-color: #233979 !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+[data-theme="navy"] .bg-\[\#141416\] {
+  background-color: #0b1329 !important;
+}
+[data-theme="navy"] .border-white\/5,
+[data-theme="navy"] .border-white\/10,
+[data-theme="navy"] .border-white\/15,
+[data-theme="navy"] .border-white\/20 {
+  border-color: rgba(56, 189, 248, 0.16) !important;
+}
+
+
+/* 3. EMERALD LEDGER THEME (Excel & Accounting) */
+html[data-theme="emerald"],
+body[data-theme="emerald"],
+[data-theme="emerald"] {
+  background-color: #03140e !important;
+  color: #ecfdf5 !important;
+}
+[data-theme="emerald"] body,
+[data-theme="emerald"] .bg-\[\#000000\] {
+  background-color: #03140e !important;
+}
+[data-theme="emerald"] .bg-\[\#121214\],
+[data-theme="emerald"] .bg-\[\#121214\]\/85 {
+  background-color: #071f16 !important;
+  border-color: rgba(52, 211, 153, 0.15) !important;
+}
+[data-theme="emerald"] .bg-\[\#161618\] {
+  background-color: #0b291e !important;
+  border-color: rgba(52, 211, 153, 0.18) !important;
+}
+[data-theme="emerald"] .bg-\[\#1c1c1e\] {
+  background-color: #0f3527 !important;
+  border-color: rgba(52, 211, 153, 0.2) !important;
+}
+[data-theme="emerald"] .bg-\[\#242426\] {
+  background-color: #144332 !important;
+  border-color: rgba(52, 211, 153, 0.22) !important;
+}
+[data-theme="emerald"] .bg-\[\#2c2c2e\] {
+  background-color: #1a5640 !important;
+  border-color: rgba(52, 211, 153, 0.25) !important;
+}
+[data-theme="emerald"] .bg-\[\#141416\] {
+  background-color: #051b13 !important;
+}
+[data-theme="emerald"] .border-white\/5,
+[data-theme="emerald"] .border-white\/10,
+[data-theme="emerald"] .border-white\/15,
+[data-theme="emerald"] .border-white\/20 {
+  border-color: rgba(52, 211, 153, 0.16) !important;
+}
+
+
+/* 4. ROYAL AMETHYST THEME (Purple Luxury) */
+html[data-theme="purple"],
+body[data-theme="purple"],
+[data-theme="purple"] {
+  background-color: #0c061a !important;
+  color: #faf5ff !important;
+}
+[data-theme="purple"] body,
+[data-theme="purple"] .bg-\[\#000000\] {
+  background-color: #0c061a !important;
+}
+[data-theme="purple"] .bg-\[\#121214\],
+[data-theme="purple"] .bg-\[\#121214\]\/85 {
+  background-color: #140a2b !important;
+  border-color: rgba(192, 132, 252, 0.15) !important;
+}
+[data-theme="purple"] .bg-\[\#161618\] {
+  background-color: #1b0e38 !important;
+  border-color: rgba(192, 132, 252, 0.18) !important;
+}
+[data-theme="purple"] .bg-\[\#1c1c1e\] {
+  background-color: #221247 !important;
+  border-color: rgba(192, 132, 252, 0.2) !important;
+}
+[data-theme="purple"] .bg-\[\#242426\] {
+  background-color: #2d185c !important;
+  border-color: rgba(192, 132, 252, 0.22) !important;
+}
+[data-theme="purple"] .bg-\[\#2c2c2e\] {
+  background-color: #3b2075 !important;
+  border-color: rgba(192, 132, 252, 0.25) !important;
+}
+[data-theme="purple"] .bg-\[\#141416\] {
+  background-color: #0f0721 !important;
+}
+[data-theme="purple"] .border-white\/5,
+[data-theme="purple"] .border-white\/10,
+[data-theme="purple"] .border-white\/15,
+[data-theme="purple"] .border-white\/20 {
+  border-color: rgba(192, 132, 252, 0.16) !important;
+}
+
+
+/* 5. AMBER SUNSET THEME (Warm Charcoal) */
+html[data-theme="amber"],
+body[data-theme="amber"],
+[data-theme="amber"] {
+  background-color: #140d06 !important;
+  color: #fffbeb !important;
+}
+[data-theme="amber"] body,
+[data-theme="amber"] .bg-\[\#000000\] {
+  background-color: #140d06 !important;
+}
+[data-theme="amber"] .bg-\[\#121214\],
+[data-theme="amber"] .bg-\[\#121214\]\/85 {
+  background-color: #1e1309 !important;
+  border-color: rgba(251, 191, 36, 0.15) !important;
+}
+[data-theme="amber"] .bg-\[\#161618\] {
+  background-color: #26190c !important;
+  border-color: rgba(251, 191, 36, 0.18) !important;
+}
+[data-theme="amber"] .bg-\[\#1c1c1e\] {
+  background-color: #301f0f !important;
+  border-color: rgba(251, 191, 36, 0.2) !important;
+}
+[data-theme="amber"] .bg-\[\#242426\] {
+  background-color: #3e2814 !important;
+  border-color: rgba(251, 191, 36, 0.22) !important;
+}
+[data-theme="amber"] .bg-\[\#2c2c2e\] {
+  background-color: #50341a !important;
+  border-color: rgba(251, 191, 36, 0.25) !important;
+}
+[data-theme="amber"] .bg-\[\#141416\] {
+  background-color: #191007 !important;
+}
+[data-theme="amber"] .border-white\/5,
+[data-theme="amber"] .border-white\/10,
+[data-theme="amber"] .border-white\/15,
+[data-theme="amber"] .border-white\/20 {
+  border-color: rgba(251, 191, 36, 0.16) !important;
+}
+
+
+/* 6. VENUM THEME (Symbiote Obsidian & Neon Magenta/Crimson) */
+html[data-theme="venum"],
+body[data-theme="venum"],
+[data-theme="venum"] {
+  background-color: #050508 !important;
+  color: #fff1f2 !important;
+}
+[data-theme="venum"] body,
+[data-theme="venum"] .bg-\[\#000000\] {
+  background-color: #050508 !important;
+}
+[data-theme="venum"] .bg-\[\#121214\],
+[data-theme="venum"] .bg-\[\#121214\]\/85 {
+  background-color: #0b0b14 !important;
+  border-color: rgba(244, 63, 94, 0.22) !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.05) !important;
+}
+[data-theme="venum"] .bg-\[\#161618\] {
+  background-color: #10101c !important;
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+[data-theme="venum"] .bg-\[\#1c1c1e\] {
+  background-color: #161626 !important;
+  border-color: rgba(244, 63, 94, 0.28) !important;
+}
+[data-theme="venum"] .bg-\[\#242426\] {
+  background-color: #1e1e33 !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+[data-theme="venum"] .bg-\[\#2c2c2e\] {
+  background-color: #291b38 !important;
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
+[data-theme="venum"] .bg-\[\#141416\] {
+  background-color: #0d0d17 !important;
+}
+[data-theme="venum"] .border-white\/5,
+[data-theme="venum"] .border-white\/10,
+[data-theme="venum"] .border-white\/15,
+[data-theme="venum"] .border-white\/20 {
+  border-color: rgba(244, 63, 94, 0.22) !important;
+}
+
+
+/* 7. TRANSPARENT MANGO YELLOW THEME (Glassmorphic Golden Mango) */
+html[data-theme="mango"],
+body[data-theme="mango"],
+[data-theme="mango"] {
+  background-color: #150d03 !important;
+  background-image: radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.15) 0%, transparent 40%),
+                    radial-gradient(circle at 90% 80%, rgba(251, 191, 36, 0.12) 0%, transparent 45%) !important;
+  color: #fffdf5 !important;
+}
+[data-theme="mango"] body,
+[data-theme="mango"] .bg-\[\#000000\] {
+  background-color: #150d03 !important;
+}
+[data-theme="mango"] .bg-\[\#121214\],
+[data-theme="mango"] .bg-\[\#121214\]\/85 {
+  background-color: rgba(38, 22, 5, 0.85) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-color: rgba(251, 191, 36, 0.3) !important;
+  box-shadow: 0 4px 24px rgba(245, 158, 11, 0.12) !important;
+}
+[data-theme="mango"] .bg-\[\#161618\] {
+  background-color: rgba(48, 28, 7, 0.82) !important;
+  backdrop-filter: blur(14px) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+[data-theme="mango"] .bg-\[\#1c1c1e\] {
+  background-color: rgba(62, 36, 9, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  border-color: rgba(251, 191, 36, 0.38) !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15) !important;
+}
+[data-theme="mango"] .bg-\[\#242426\] {
+  background-color: rgba(78, 46, 12, 0.88) !important;
+  border-color: rgba(251, 191, 36, 0.42) !important;
+}
+[data-theme="mango"] .bg-\[\#2c2c2e\] {
+  background-color: rgba(100, 58, 15, 0.9) !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+[data-theme="mango"] .bg-\[\#141416\] {
+  background-color: rgba(30, 18, 4, 0.88) !important;
+}
+[data-theme="mango"] .border-white\/5,
+[data-theme="mango"] .border-white\/10,
+[data-theme="mango"] .border-white\/15,
+[data-theme="mango"] .border-white\/20 {
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+
+
+/* 8. WINDOWS XP CLASSIC THEME (Luna Retro Blue & Dialog Beige) */
+html[data-theme="winxp"],
+body[data-theme="winxp"],
+[data-theme="winxp"] {
+  background-color: #25587e !important;
+  background-image: linear-gradient(135deg, #25587e 0%, #3a75a4 50%, #25587e 100%) !important;
+  color: #0c1a30 !important;
+  font-family: 'Tahoma', 'Segoe UI', -apple-system, sans-serif !important;
+}
+[data-theme="winxp"] body,
+[data-theme="winxp"] .bg-\[\#000000\] {
+  background-color: #25587e !important;
+  color: #0c1a30 !important;
+}
+[data-theme="winxp"] .bg-\[\#121214\],
+[data-theme="winxp"] .bg-\[\#121214\]\/85 {
+  background: linear-gradient(180deg, #0055ea 0%, #0045c7 35px, #ece9d8 35px, #ece9d8 100%) !important;
+  border: 2px solid #0055ea !important;
+  border-radius: 8px 8px 0 0 !important;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.35) !important;
+  color: #0c1a30 !important;
+}
+[data-theme="winxp"] .bg-\[\#161618\] {
+  background-color: #ece9d8 !important;
+  border-color: #7a96df !important;
+  color: #0c1a30 !important;
+}
+[data-theme="winxp"] .bg-\[\#1c1c1e\] {
+  background-color: #ffffff !important;
+  border: 1px solid #7a96df !important;
+  color: #0c1a30 !important;
+  box-shadow: inset 1px 1px 0 rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+[data-theme="winxp"] .bg-\[\#242426\] {
+  background-color: #ece9d8 !important;
+  border-color: #7a96df !important;
+  color: #0c1a30 !important;
+}
+[data-theme="winxp"] .bg-\[\#2c2c2e\] {
+  background-color: #d6dff7 !important;
+  border-color: #7a96df !important;
+  color: #003c74 !important;
+}
+[data-theme="winxp"] .bg-\[\#2c2c2e\]:hover,
+[data-theme="winxp"] .hover\:bg-\[\#3a3a3c\]:hover {
+  background-color: #c0d2f7 !important;
+}
+[data-theme="winxp"] .border-white\/5,
+[data-theme="winxp"] .border-white\/10,
+[data-theme="winxp"] .border-white\/15,
+[data-theme="winxp"] .border-white\/20 {
+  border-color: #7a96df !important;
+}
+[data-theme="winxp"] .text-white,
+[data-theme="winxp"] .text-zinc-100,
+[data-theme="winxp"] .text-zinc-200 {
+  color: #0c1a30 !important;
+}
+[data-theme="winxp"] .text-zinc-300,
+[data-theme="winxp"] .text-zinc-400 {
+  color: #44556e !important;
+}
+[data-theme="winxp"] button {
+  border-radius: 4px;
+}
+
+
+/* =========================================================================
+   2D vs 3D DIMENSIONAL GRAPHICS & ICONS ENGINE
+   ========================================================================= */
+
+/* 3D MODE: ICONS, BADGES & ELEVATION */
+[data-dimension="3d"] svg.lucide,
+[data-dimension="3d"] .icon-3d {
+  filter: drop-shadow(1px 1px 0 rgba(255, 255, 255, 0.25))
+          drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.45))
+          drop-shadow(0 3px 4px rgba(0, 0, 0, 0.65));
+  transform: translateZ(2px);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+[data-dimension="3d"] button:hover svg.lucide,
+[data-dimension="3d"] a:hover svg.lucide {
+  filter: drop-shadow(1px 1px 0 rgba(255, 255, 255, 0.4))
+          drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.6))
+          drop-shadow(0 4px 8px rgba(0, 0, 0, 0.75));
+  transform: translateY(-1px) scale(1.04);
+}
+
+/* 3D Dimensional Button Bevels & Tactile Elevation */
+[data-dimension="3d"] button {
+  box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.5),
+              0 1px 2px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.18),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-dimension="3d"] button:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6),
+              inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(1.5px);
+}
+
+/* 3D Card Floating Shadows */
+[data-dimension="3d"] .shadow-lg,
+[data-dimension="3d"] .shadow-xl,
+[data-dimension="3d"] .shadow-2xl {
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.65),
+              0 4px 10px -2px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 2D MODE: Crisp flat styling */
+[data-dimension="2d"] svg.lucide,
+[data-dimension="2d"] .icon-3d {
+  filter: none !important;
+  transform: none !important;
+}
+
+
+@media print {
+  @page {
+    margin: 8mm 8mm;
+    size: auto;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #root, main {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  /* Enforce all columns fit page width */
+  .print-fit-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+  .print-fit-table th,
+  .print-fit-table td {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    hyphens: auto !important;
+  }
+  .printable-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  /* Mail Merge Single A4 Page Strict Auto-Fit Layout */
+  .mail-merge-print-page {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 275mm !important;
+    max-height: 280mm !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: white !important;
+    color: black !important;
+    overflow: hidden !important;
+    padding: 12mm 15mm !important;
+    margin: 0 !important;
+  }
+  .mail-merge-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Pivot Summary Drilldown Modal Strict Print Isolation */
+  body.pivot-summary-modal-active > #root > *:not(:has(#pivot-summary-modal-root)),
+  body.pivot-summary-modal-active header,
+  body.pivot-summary-modal-active nav,
+  body.pivot-summary-modal-active aside,
+  body.pivot-summary-modal-active footer,
+  body.pivot-summary-modal-active .pivot-builder-sidebar,
+  body.pivot-summary-modal-active .pivot-canvas-wrapper,
+  body.pivot-summary-modal-active table:not(#pivot-summary-modal-content table) {
+    display: none !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-root {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-content {
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    color: black !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-content th,
+  body.pivot-summary-modal-active #pivot-summary-modal-content td {
+    border: 1px solid #94a3b8 !important;
+    color: #0f172a !important;
+    padding: 5px 8px !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-content th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+
+  body.pivot-summary-modal-active #pivot-summary-modal-content tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* Custom High-Contrast Scrollbar for Pivot Table and Data Grids */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #18181b;
+  border-radius: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 6px;
+  border: 2px solid #18181b;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #18181b;
+}
+
+/* =========================================================================
+   STICKY TABLE HEADERS (Solid Opaque Background Across All Themes)
+   Prevents scrolling data rows from bleeding through table headers
+   ========================================================================= */
+thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+}
+
+thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  background-color: #161618 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Dark Theme - Midnight OLED */
+[data-theme="midnight"] thead th {
+  background-color: #161618 !important;
+  color: #f4f4f5 !important;
+}
+
+/* Dark Theme - Royal Amethyst (Purple) */
+[data-theme="purple"] thead th {
+  background-color: #1b0e38 !important;
+  color: #faf5ff !important;
+  border-color: rgba(192, 132, 252, 0.2) !important;
+}
+
+/* Dark Theme - Amber Sunset */
+[data-theme="amber"] thead th {
+  background-color: #26190c !important;
+  color: #fffbeb !important;
+  border-color: rgba(251, 191, 36, 0.2) !important;
+}
+
+/* Dark Theme - Emerald Ledger */
+[data-theme="emerald"] thead th {
+  background-color: #0b291e !important;
+  color: #ecfdf5 !important;
+  border-color: rgba(52, 211, 153, 0.2) !important;
+}
+
+/* Dark Theme - Navy Slate */
+[data-theme="navy"] thead th {
+  background-color: #101c3d !important;
+  color: #f0f9ff !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Dark Theme - Venum */
+[data-theme="venum"] thead th {
+  background-color: #160a16 !important;
+  color: #fdf2f8 !important;
+  border-color: rgba(244, 63, 94, 0.2) !important;
+}
+
+/* Light Theme - Clean high contrast, solid light header */
+[data-theme="light"] thead th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] thead th span,
+[data-theme="light"] thead th div {
+  color: #0f172a !important;
+}
+
+/* =========================================================================
+   POWERPOINT-STYLE TRANSITIONS & MEDIA ALBUM ANIMATIONS ENGINE
+   ========================================================================= */
+
+/* 1. Fade / Dissolve */
+@keyframes pptFadeEnter {
+  0% { opacity: 0; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pptFadeExit {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.96); }
+}
+.ppt-enter-fade {
+  animation: pptFadeEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 2. Wipe / Push */
+@keyframes pptWipeEnter {
+  0% { opacity: 0; transform: translateX(60px); clip-path: inset(0 0 0 100%); }
+  100% { opacity: 1; transform: translateX(0); clip-path: inset(0 0 0 0); }
+}
+.ppt-enter-wipe {
+  animation: pptWipeEnter 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+/* 3. Zoom / Camera Lens */
+@keyframes pptZoomEnter {
+  0% { opacity: 0; transform: scale(0.75); }
+  70% { transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.ppt-enter-zoom {
+  animation: pptZoomEnter 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 4. Flip 3D (Card Flip along Y axis) */
+@keyframes pptFlip3dEnter {
+  0% { opacity: 0; transform: perspective(1200px) rotateY(-80deg) scale(0.9); }
+  100% { opacity: 1; transform: perspective(1200px) rotateY(0deg) scale(1); }
+}
+.ppt-enter-flip_3d {
+  animation: pptFlip3dEnter 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+  transform-style: preserve-3d;
+}
+
+/* 5. Split / Curtain (Reveal from Center) */
+@keyframes pptSplitEnter {
+  0% { opacity: 0; clip-path: polygon(50% 0%, 50% 0%, 50% 100%, 50% 100%); transform: scale(1.03); }
+  100% { opacity: 1; clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); transform: scale(1); }
+}
+.ppt-enter-split {
+  animation: pptSplitEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 6. Cube 3D (3D Cube Rotation) */
+@keyframes pptCubeEnter {
+  0% { opacity: 0; transform: perspective(1400px) rotateY(45deg) translateZ(-120px); }
+  100% { opacity: 1; transform: perspective(1400px) rotateY(0deg) translateZ(0); }
+}
+.ppt-enter-cube_3d {
+  animation: pptCubeEnter 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-style: preserve-3d;
+}
+
+/* 7. Rise / Float Up */
+@keyframes pptRiseEnter {
+  0% { opacity: 0; transform: translateY(50px) scale(0.96); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.ppt-enter-rise {
+  animation: pptRiseEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3D Coverflow Container & Glass Reflection */
+.coverflow-viewport {
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+
+.coverflow-card-reflection {
+  -webkit-box-reflect: below 6px linear-gradient(to bottom, transparent 65%, rgba(0, 0, 0, 0.35));
+}
+
+/* Polaroid Photo Frame Styling */
+.polaroid-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.polaroid-card:hover {
+  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  z-index: 30;
+}
+
+

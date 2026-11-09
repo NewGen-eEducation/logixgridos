@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Radial Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a080d" />
+      <stop offset="45%" stop-color="#150306" />
+      <stop offset="85%" stop-color="#0a0103" />
+      <stop offset="100%" stop-color="#050102" />
+    </radialGradient>
+
+    <!-- Inner Squircle Gradient -->
+    <radialGradient id="innerCardGrad" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#380d14" />
+      <stop offset="40%" stop-color="#1f0509" />
+      <stop offset="80%" stop-color="#100204" />
+      <stop offset="100%" stop-color="#090102" />
+    </radialGradient>
+
+    <!-- Conic / Linear Red Energy Gradient -->
+    <linearGradient id="redRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3b30" />
+      <stop offset="25%" stop-color="#b91c1c" />
+      <stop offset="50%" stop-color="#ff453a" />
+      <stop offset="75%" stop-color="#991b1b" />
+      <stop offset="100%" stop-color="#ff2a2a" />
+    </linearGradient>
+
+    <linearGradient id="eGlowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff4d4d" />
+      <stop offset="60%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+
+    <!-- Red Outer Glow Filter -->
+    <filter id="ambientGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="32" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Intense Red Core Glow -->
+    <filter id="coreGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="16" flood-color="#ff2a2a" flood-opacity="0.9" />
+      <feDropShadow dx="0" dy="0" stdDeviation="32" flood-color="#dc2626" flood-opacity="0.6" />
+    </filter>
+
+    <filter id="bezelShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.8" />
+    </filter>
+  </defs>
+
+  <!-- 1. Ambient Red Atmosphere / Halo behind icon -->
+  <circle cx="256" cy="256" r="210" fill="#dc2626" opacity="0.22" filter="url(#ambientGlow)" />
+  <circle cx="256" cy="256" r="160" fill="#ff3b30" opacity="0.32" filter="url(#ambientGlow)" />
+
+  <!-- 2. Dark Rounded Squircle Base (App Container) -->
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="url(#bgGrad)" stroke="#ff2a2a" stroke-opacity="0.35" stroke-width="4" />
+
+  <!-- 3. Outer Glowing Circular/Elliptical Bezel matching image_a7d73af8.png -->
+  <!-- Outer metallic dark ring -->
+  <rect x="52" y="52" width="408" height="408" rx="92" fill="#110305" stroke="#ff3b30" stroke-opacity="0.55" stroke-width="3" filter="url(#bezelShadow)" />
+
+  <!-- Red energy corner cuts / perimeter slits -->
+  <!-- Top & Bottom Glowing Slits -->
+  <path d="M 160 54 Q 256 46 352 54" fill="none" stroke="#ff3b30" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <path d="M 160 458 Q 256 466 352 458" fill="none" stroke="#ff3b30" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <!-- Left & Right Glowing Slits -->
+  <path d="M 54 160 Q 46 256 54 352" fill="none" stroke="#ff3b30" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <path d="M 458 160 Q 466 256 458 352" fill="none" stroke="#ff3b30" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+
+  <!-- 4. Inner Squircle with Red Neon Border matching image_a7d73af8.png -->
+  <g filter="url(#coreGlow)">
+    <rect x="88" y="88" width="336" height="336" rx="76" fill="url(#innerCardGrad)" stroke="#ff2a2a" stroke-width="5" />
+    <!-- Secondary inner rim -->
+    <rect x="96" y="96" width="320" height="320" rx="68" fill="none" stroke="#ff453a" stroke-opacity="0.4" stroke-width="2" />
+  </g>
+
+  <!-- Specular curved highlight on top of inner card -->
+  <path d="M 120 102 C 180 94, 332 94, 392 102 C 340 135, 172 135, 120 102 Z" fill="#ffffff" opacity="0.08" />
+
+  <!-- 5. Iconic Red Lowercase 'e' (Bold, glowing, perfectly centered) -->
+  <g filter="url(#coreGlow)">
+    <!-- Lowercase 'e' Vector Path -->
+    <path d="M 334 260
+             C 334 250 332 238 327 226
+             C 319 206 305 190 286 179
+             C 268 169 247 165 226 168
+             C 203 172 182 183 167 199
+             C 151 216 142 238 142 263
+             C 142 288 150 310 166 327
+             C 182 344 204 354 231 355
+             C 256 355 278 349 297 337
+             C 313 327 325 312 332 294
+             L 288 280
+             C 283 292 275 301 264 307
+             C 254 313 243 315 231 315
+             C 214 315 200 309 191 298
+             C 183 289 178 277 177 262
+             L 334 262
+             Z
+             M 179 232
+             C 182 219 190 209 201 202
+             C 210 196 221 193 232 193
+             C 244 193 255 196 264 203
+             C 273 210 280 220 283 232
+             L 179 232
+             Z"
+          fill="url(#eGlowGrad)"
+          stroke="#ff4d4d"
+          stroke-width="3"
+          stroke-linejoin="round" />
+  </g>
+</svg>

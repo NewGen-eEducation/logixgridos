@@ -1,0 +1,8 @@
+{
+  "name": "Remix Dynamic Register \u0026 Data Analysis",
+  "description": "High-performance dynamic register builder, spreadsheet ledger, and statistical data analysis workstation with interactive pivot tables and visualizations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

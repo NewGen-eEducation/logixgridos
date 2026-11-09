@@ -1,0 +1,2661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ver 5: Multi-File Excel Lookup, Column Arranger & Print Studio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) Library -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    /* Custom scrollbar for spreadsheet feel */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .cell-input:focus {
+      outline: 2px solid #2563eb;
+      outline-offset: -2px;
+      background-color: #eff6ff;
+    }
+    /* Column Resize Handle & Drag Drop Styles */
+    .col-resize-handle {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 7px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 20;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    .col-resize-handle:hover,
+    .col-resize-handle.resizing {
+      background-color: #2563eb;
+    }
+    th.dragging-col {
+      opacity: 0.45;
+      background-color: #dbeafe !important;
+    }
+    th.drag-over-left {
+      box-shadow: inset 4px 0 0 0 #2563eb;
+    }
+    th.drag-over-right {
+      box-shadow: inset -4px 0 0 0 #2563eb;
+    }
+    .grid-fixed-layout {
+      table-layout: fixed;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Toast Notification Banner (No alert() used) -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Live Resize Width Indicator Pill -->
+  <div id="resizeTooltip" class="fixed z-50 hidden bg-slate-900 text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded-md shadow-lg pointer-events-none">
+    160 px
+  </div>
+
+  <!-- Arrange, Resize & Print Layout Studio Modal -->
+  <div id="layoutStudioModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">📐</span>
+          <div>
+            <h3 class="text-base font-bold">Arrange Columns, Resize Widths & Print Format Studio</h3>
+            <p class="text-xs text-slate-300">Reorder any input or extracted column, customize display headers, set exact column widths, and configure your print layout.</p>
+          </div>
+        </div>
+        <button id="closeLayoutStudioBtn" class="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 text-sm font-bold">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 bg-slate-50">
+        <!-- Left 7 Cols: Interactive Column Order, Rename & Width List -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200 p-4 flex flex-col shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+            <div>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Column Sequence, Header Rename & Widths</h4>
+              <p class="text-[11px] text-slate-500">Use ⬆ / ⬇ to reorder, rename any header for print/export, or adjust width (px).</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <button id="studioAutoFitAllBtn" type="button" class="px-2.5 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 text-[11px] font-semibold border border-blue-200">
+                ↔ Auto-Fit All
+              </button>
+              <button id="studioEqualWidthsBtn" type="button" class="px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-semibold">
+                = Equal Widths
+              </button>
+              <button id="studioCompactWidthsBtn" type="button" class="px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-semibold border border-emerald-200">
+                🖨 Compact Print Fit
+              </button>
+              <button id="studioResetOrderBtn" type="button" class="px-2.5 py-1 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 text-[11px] font-semibold border border-rose-200">
+                ↺ Reset Order
+              </button>
+            </div>
+          </div>
+
+          <div id="studioColumnsList" class="flex-1 overflow-y-auto max-h-[420px] flex flex-col gap-2 pr-1"></div>
+        </div>
+
+        <!-- Right 5 Cols: Print Page Formatting Settings -->
+        <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between shadow-sm">
+          <div class="flex flex-col gap-3.5">
+            <div class="pb-2 border-b border-slate-100">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Required Print Page Format</h4>
+              <p class="text-[11px] text-slate-500">Customize how the resultant table looks when printed or saved as PDF.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Print Report Title</label>
+              <input type="text" id="printTitleInput" value="Extracted Multi-File Lookup Report"
+                placeholder="Enter report heading..."
+                class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Subtitle / Department / Notes (Optional)</label>
+              <input type="text" id="printSubtitleInput" value=""
+                placeholder="e.g. Verified Consolidated Data Sheet — Q4"
+                class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Page Orientation</label>
+                <select id="printOrientationSelect" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white font-medium">
+                  <option value="landscape" selected>Landscape (Wide)</option>
+                  <option value="portrait">Portrait (Tall)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Paper Size</label>
+                <select id="printPaperSizeSelect" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white font-medium">
+                  <option value="A4" selected>A4 Standard</option>
+                  <option value="letter">US Letter</option>
+                  <option value="legal">Legal (Extra Wide)</option>
+                  <option value="A3">A3 Large Sheet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Print Font Size</label>
+                <select id="printFontSizeSelect" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white font-medium">
+                  <option value="8pt">8 pt (Ultra Compact)</option>
+                  <option value="9pt">9 pt (Compact)</option>
+                  <option value="10pt" selected>10 pt (Standard)</option>
+                  <option value="11pt">11 pt (Medium)</option>
+                  <option value="12pt">12 pt (Large)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Cell Padding Density</label>
+                <select id="printPaddingSelect" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white font-medium">
+                  <option value="3px 4px">Compact (Tight)</option>
+                  <option value="5px 7px" selected>Normal (Balanced)</option>
+                  <option value="8px 10px">Spacious (Roomy)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-col gap-2">
+              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input type="checkbox" id="printRespectWidthsToggle" checked class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Apply My Resized Column Width Proportions in Print</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input type="checkbox" id="printShowSerialToggle" checked class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Include Row Serial Number (#) Column</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input type="checkbox" id="printZebraToggle" checked class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Alternating Zebra Row Shading for Readability</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input type="checkbox" id="printShowTimestampToggle" checked class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Show Printed Timestamp & Summary Header</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button id="studioPrintNowBtn" type="button" class="flex-1 px-4 py-2.5 rounded-lg text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm flex items-center justify-center gap-1.5">
+              <span>🖨</span> Print Formatted Table Now
+            </button>
+            <button id="doneLayoutStudioBtn" type="button" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
+              Apply & Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste Modal Dialog -->
+  <div id="pasteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-lg font-bold text-slate-800">Paste Lookup Keys from Excel / Clipboard</h3>
+        <button id="closePasteModalBtn" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">✕</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">
+        Paste a list of IDs, names, or codes (one per line, or tab-separated rows copied from Excel). They will be added directly into your currently selected Search Column and matched across all loaded Lookup Excel files.
+      </p>
+      <textarea id="pasteTextarea" rows="7" placeholder="e.g.&#10;EMP-101&#10;EMP-103&#10;EMP-105" class="w-full border border-slate-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4"></textarea>
+      <div class="flex items-center justify-between">
+        <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+          <input type="checkbox" id="replaceRowsCheckbox" class="rounded text-blue-600 focus:ring-blue-500" checked>
+          Replace existing empty/default rows
+        </label>
+        <div class="flex gap-2">
+          <button id="cancelPasteBtn" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200">Cancel</button>
+          <button id="confirmPasteBtn" class="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700">Insert Values & Lookup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+            ⇄
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                Multi-File Excel Visual Lookup & Interactive Table Builder
+              </h1>
+              <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded-full">Ver 5 Arrange & Print</span>
+            </div>
+            <p class="text-xs text-slate-500">
+              Upload multiple Excel/CSV files, pull values with a single Search Key, then drag/reorder columns, resize widths, and print in your exact format.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        <button id="openLayoutStudioHeaderBtn" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition flex items-center gap-1.5 shadow-sm">
+          <span>📐</span> Arrange, Resize & Print Setup
+        </button>
+        <button id="exportExcelBtn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm">
+          <span>⬇</span> Export Table (.xlsx)
+        </button>
+        <button id="exportCsvBtn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-sm">
+          <span>⇩</span> Export CSV
+        </button>
+        <button id="printTableBtn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition flex items-center gap-1.5 shadow-sm">
+          <span>🖨</span> Print Table
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 flex flex-col gap-6">
+
+    <!-- Top Configuration Grid: Step 1 (Multiple Source Lookup Files) & Step 2 (Multi-File Column Mapping) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Card: Multiple Lookup Source Excel Files (5 Cols) -->
+      <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">1</span>
+              <h2 class="font-bold text-slate-800 text-sm sm:text-base">Source Lookup Excel Files</h2>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span id="lookupStatusBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                0 Files Loaded
+              </span>
+              <button id="clearAllFilesBtn" type="button" class="hidden text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 transition">
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <!-- Upload Multiple Lookup Files -->
+          <div class="mb-3">
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+              Upload One or Multiple Excel / CSV Files to Search Inside (.xlsx, .xls, .csv)
+            </label>
+            <input type="file" id="lookupFileInput" accept=".xlsx,.xls,.csv" multiple
+              class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-lg cursor-pointer bg-slate-50/50" />
+            <p class="text-[11px] text-slate-400 mt-1">
+              Tip: Select multiple files at once or upload additional files anytime—they will be added to your lookup pool below.
+            </p>
+          </div>
+
+          <!-- Loaded Files Pill Selector List -->
+          <div class="mb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Loaded Lookup Files (Click to Configure)</span>
+              <button id="autoSyncKeysBtn" type="button" disabled class="text-[11px] font-semibold text-blue-600 hover:underline disabled:text-slate-300 disabled:no-underline" title="Match the active file's key column name across all other loaded files">
+                🔗 Sync Key Column Name Across Files
+              </button>
+            </div>
+            <div id="loadedFilesList" class="max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-1.5 bg-slate-50 flex flex-col gap-1">
+              <p class="text-xs text-slate-400 p-2 text-center">No lookup files uploaded yet. Upload 1 or more files above.</p>
+            </div>
+          </div>
+
+          <!-- Active Selected Lookup File Settings -->
+          <div id="activeFileConfigBox" class="bg-slate-50/80 rounded-lg p-3 border border-slate-200/90 mb-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span>⚙️ Configuring File:</span>
+                <span id="activeFileNameLabel" class="text-blue-700 truncate max-w-[180px]">None</span>
+              </span>
+              <span id="lookupHeaderBannerBadge" class="text-[11px] font-medium text-blue-600">Auto-detect active</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5">
+              <!-- Sheet Selector -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Select Worksheet</label>
+                <select id="lookupSheetSelect" disabled class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white disabled:bg-slate-100 disabled:text-slate-400">
+                  <option>Upload file first...</option>
+                </select>
+              </div>
+
+              <!-- Lookup Orientation Mode -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Lookup Function Mode</label>
+                <select id="lookupModeSelect" disabled class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs bg-white font-medium text-slate-700 disabled:bg-slate-100 disabled:text-slate-400">
+                  <option value="xlookup">XLOOKUP / VLOOKUP (Vertical)</option>
+                  <option value="hlookup">HLOOKUP (Horizontal Rows)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Dynamic Header Row Detection (Skips Top Title Rows) -->
+            <div class="flex items-center gap-2 pt-1 border-t border-slate-200/70">
+              <label for="lookupHeaderRowInput" class="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+                Header Row #:
+              </label>
+              <input type="number" id="lookupHeaderRowInput" min="1" value="1" disabled
+                class="w-16 rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-center bg-white disabled:bg-slate-100" />
+              <p id="lookupHeaderHint" class="text-[11px] text-slate-500 leading-tight">
+                Skips report titles in top rows automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Source Lookup Table Toggle -->
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <span id="lookupSummaryText" class="text-xs text-slate-500">0 total keys across 0 files</span>
+          <button id="toggleSourcePreviewBtn" disabled class="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:text-slate-400">
+            👁 Inspect Source Files
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Card: Multi-File Visual Column Selector (No Formulas Needed) (7 Cols) -->
+      <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 mb-4 gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">2</span>
+              <h2 class="font-bold text-slate-800 text-sm sm:text-base">Map Search Key & Select Columns Across Files</h2>
+            </div>
+            <label class="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full cursor-pointer">
+              <input type="checkbox" id="liveAutoLookupToggle" checked class="rounded text-emerald-600 focus:ring-0">
+              Live Auto-Lookup As You Type
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-4">
+            <!-- Left half of Step 2: Global Key & Multi-File Merge Strategy -->
+            <div class="sm:col-span-5 flex flex-col gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  Search Key in <span class="text-blue-600">Your Table</span> (Lookup Value)
+                </label>
+                <select id="userKeyColSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white font-medium"></select>
+                <p class="text-[11px] text-slate-400 mt-0.5">Single lookup value matched across all loaded files.</p>
+              </div>
+
+              <!-- Multi-File Merge Mode Selector -->
+              <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-2.5">
+                <label class="block text-xs font-semibold text-indigo-950 mb-1">
+                  Multi-File Lookup Mode
+                </label>
+                <select id="multiFileMergeModeSelect" class="w-full rounded-lg border border-indigo-200 px-2.5 py-1.5 text-xs bg-white font-semibold text-indigo-900">
+                  <option value="side_by_side">Side-by-Side Columns (Join All Files)</option>
+                  <option value="consolidate">Consolidate / Fallback (Unify Same Columns)</option>
+                </select>
+                <p id="mergeModeHint" class="text-[11px] text-indigo-700/80 mt-1 leading-snug">
+                  Extracts selected columns from every file side-by-side for the same lookup value.
+                </p>
+              </div>
+
+              <!-- Quick Active File Match Column Selector (also editable per-file on the right) -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  Match Column in <span id="activeFileKeyLabel" class="text-indigo-600">Active File</span>
+                </label>
+                <select id="lookupKeyColSelect" disabled class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white font-medium disabled:bg-slate-100"></select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  If Value Not Found Show:
+                </label>
+                <input type="text" id="notFoundInput" value="Not Found"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white" />
+              </div>
+            </div>
+
+            <!-- Right half of Step 2: Per-File Match Column & Return Columns Checkboxes -->
+            <div class="sm:col-span-7 flex flex-col">
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-semibold text-slate-700">
+                  Match Key & Return Columns Per Lookup File
+                </label>
+                <div class="flex gap-2">
+                  <button id="selectAllReturnColsBtn" type="button" class="text-[11px] font-semibold text-blue-600 hover:underline">Select All Files</button>
+                  <span class="text-slate-300">|</span>
+                  <button id="clearAllReturnColsBtn" type="button" class="text-[11px] font-semibold text-slate-500 hover:underline">Clear All</button>
+                </div>
+              </div>
+
+              <div id="returnColsList" class="flex-1 min-h-[215px] max-h-[250px] overflow-y-auto border border-slate-200 rounded-lg p-2.5 bg-slate-50 flex flex-col gap-2.5">
+                <p class="text-xs text-slate-400 p-3 text-center">
+                  Upload one or more Lookup Excel files in Step 1 to configure each file's Match Column and Return Columns...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Action Bar inside Step 2 -->
+        <div class="pt-3 mt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="text-xs text-slate-500" id="lookupMatchSummary">
+            Ready to match values across multiple files automatically.
+          </div>
+          <button id="runLookupNowBtn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm flex items-center gap-1.5">
+            <span>⚡</span> Fetch / Refresh Multi-File Lookup Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collapsible Multi-File Source Lookup Data Inspector -->
+    <div id="sourcePreviewCard" class="bg-white rounded-xl border border-indigo-200 shadow-sm p-4 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 class="text-sm font-bold text-indigo-950">Source Lookup Files Data Inspector</h3>
+          <p class="text-xs text-slate-500">Switch between your uploaded files below, or click <span class="font-semibold text-blue-600">"+ Add to My Table"</span> on any row to send that key into your search table.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="addAllUniqueKeysBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+            + Add All Unique Keys From All Files
+          </button>
+          <button id="closeSourcePreviewBtn" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2.5 py-1.5 rounded-lg bg-slate-100">
+            Hide Preview ✕
+          </button>
+        </div>
+      </div>
+      <!-- File Tabs inside Preview -->
+      <div id="previewFileTabs" class="flex flex-wrap gap-1.5 mb-2.5"></div>
+      <div id="sourcePreviewContainer" class="overflow-x-auto max-h-64 border border-slate-200 rounded-lg"></div>
+    </div>
+
+    <!-- Step 3: Interactive Workspace (Create Your Table & Search OR Upload Main File) -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
+
+      <!-- Workspace Header & Mode Tabs -->
+      <div class="p-4 sm:px-6 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">3</span>
+          <div>
+            <h2 class="font-bold text-slate-900 text-base">Your Search Table (Create Table or Upload Main Sheet)</h2>
+            <p class="text-xs text-slate-500">Type search keys in your table below, use Quick Search, or paste a list of keys—extracted columns from all loaded Excel files appear automatically!</p>
+          </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200 self-start md:self-auto">
+          <button id="tabInteractiveBtn" class="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white text-blue-700 shadow-sm transition">
+            ✏️ Create & Search in Interactive Table
+          </button>
+          <button id="tabUploadMainBtn" class="px-3.5 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+            📂 Upload Existing Main Excel File
+          </button>
+        </div>
+      </div>
+
+      <!-- Optional Upload Main File Bar (Shown when Upload Main Tab is selected) -->
+      <div id="uploadMainPanel" class="hidden bg-blue-50/60 border-b border-blue-100 px-6 py-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Upload Main Excel File (.xlsx, .xls, .csv)</label>
+            <input type="file" id="mainFileInput" accept=".xlsx,.xls,.csv"
+              class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 border border-slate-300 rounded-lg bg-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Main File Sheet</label>
+            <select id="mainSheetSelect" disabled class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white disabled:bg-slate-100">
+              <option>Upload main file...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Detected Main Header Row # (Skips Top Titles)</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="mainHeaderRowInput" min="1" value="1" disabled
+                class="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold bg-white disabled:bg-slate-100" />
+              <span id="mainHeaderHint" class="text-xs text-slate-500">Auto-detects header row</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Search & Table Builder Toolbar -->
+      <div class="px-4 sm:px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+        <!-- Left: Quick Instant Search / Autocomplete Adder -->
+        <div class="flex flex-1 items-center gap-2 max-w-xl">
+          <div class="relative flex-1">
+            <input type="text" id="quickSearchInput" list="lookupKeySuggestions"
+              placeholder="🔍 Quick Search a value across any loaded Lookup File & add to table..."
+              class="w-full rounded-lg border border-slate-300 pl-3 pr-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm" />
+            <datalist id="lookupKeySuggestions"></datalist>
+          </div>
+          <button id="quickAddBtn" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap shadow-sm">
+            + Add to My Table
+          </button>
+        </div>
+
+        <!-- Right: Table Structure Controls (Add Row, Paste List, Add Custom Column, Copy) -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="openLayoutStudioBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 transition shadow-sm flex items-center gap-1">
+            <span>📐</span> Arrange & Resize Columns
+          </button>
+          <button id="autoFitAllColsToolbarBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition shadow-sm" title="Auto-fit all column widths to their content">
+            ↔ Auto-Fit Widths
+          </button>
+          <button id="addRowBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition shadow-sm">
+            + Add Row
+          </button>
+          <button id="add5RowsBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition shadow-sm">
+            + 5 Rows
+          </button>
+          <button id="openPasteModalBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition shadow-sm">
+            📋 Paste List of Values
+          </button>
+          <button id="addColBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition shadow-sm">
+            + Add Input Column
+          </button>
+          <button id="clearTableBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition shadow-sm">
+            Reset Table
+          </button>
+          <button id="copyTableBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition shadow-sm">
+            Copy Result Table
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Help Sub-bar for Column Arrangement & Resizing -->
+      <div class="px-4 sm:px-6 py-2 bg-amber-50/70 border-b border-amber-200/70 flex flex-wrap items-center justify-between gap-2 text-[11px] text-amber-900">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="font-semibold flex items-center gap-1">
+            <span>💡 Table Formatting Tips:</span>
+          </span>
+          <span>• <strong>Reorder Columns:</strong> Drag any column header (<strong>⠿</strong>) or click <strong>◀ ▶</strong> to arrange sequence.</span>
+          <span>• <strong>Resize Width:</strong> Drag the <strong>right border</strong> of any header (double-click border to auto-fit).</span>
+          <span>• <strong>Rename Any Header:</strong> Click directly on any input or extracted column title to edit for printing.</span>
+        </div>
+        <button id="resetColLayoutQuickBtn" type="button" class="text-[11px] font-semibold text-amber-800 hover:text-amber-950 underline">
+          Reset Column Order & Widths
+        </button>
+      </div>
+
+      <!-- Interactive Spreadsheet Table Container -->
+      <div class="p-4 sm:p-6 overflow-x-auto">
+        <div class="border border-slate-200 rounded-lg overflow-x-auto shadow-sm">
+          <table class="border-collapse text-left text-xs grid-fixed-layout" id="interactiveGrid">
+            <colgroup id="gridColgroup"></colgroup>
+            <thead id="gridThead" class="bg-slate-100 border-b border-slate-200 text-slate-700 select-none"></thead>
+            <tbody id="gridTbody" class="divide-y divide-slate-200 bg-white"></tbody>
+          </table>
+        </div>
+
+        <!-- Legend & Stats Footer -->
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <div class="flex flex-wrap items-center gap-4">
+            <span class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-blue-50 border border-blue-300 inline-block"></span>
+              Your Editable Input Columns (Click header to rename)
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block"></span>
+              Auto-Extracted Multi-File Lookup Columns (XLOOKUP / VLOOKUP / HLOOKUP)
+            </span>
+          </div>
+          <div id="tableFooterStats" class="font-medium text-slate-600"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    /*************************************************************************
+     * STATE MANAGEMENT (MULTI-FILE UPGRADE)
+     *************************************************************************/
+    // Distinct color palettes for visual source file badges
+    const FILE_COLOR_THEMES = [
+      { badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-800', border: 'border-emerald-200', headerBg: 'bg-emerald-100/80', cellBg: 'bg-emerald-50/80' },
+      { badgeBg: 'bg-indigo-100',  badgeText: 'text-indigo-800',  border: 'border-indigo-200',  headerBg: 'bg-indigo-100/80',  cellBg: 'bg-indigo-50/70' },
+      { badgeBg: 'bg-purple-100',  badgeText: 'text-purple-800',  border: 'border-purple-200',  headerBg: 'bg-purple-100/80',  cellBg: 'bg-purple-50/70' },
+      { badgeBg: 'bg-cyan-100',    badgeText: 'text-cyan-800',    border: 'border-cyan-200',    headerBg: 'bg-cyan-100/80',    cellBg: 'bg-cyan-50/70' },
+      { badgeBg: 'bg-teal-100',    badgeText: 'text-teal-800',    border: 'border-teal-200',    headerBg: 'bg-teal-100/80',    cellBg: 'bg-teal-50/70' },
+      { badgeBg: 'bg-rose-100',    badgeText: 'text-rose-800',    border: 'border-rose-200',    headerBg: 'bg-rose-100/80',    cellBg: 'bg-rose-50/70' }
+    ];
+
+    // 1. User's Interactive Table State (Input columns & rows)
+    let userColumns = [
+      { id: 'col_1', name: 'Lookup_ID' },
+      { id: 'col_2', name: 'My_Notes' }
+    ];
+    let userRows = [{}, {}, {}];
+    let selectedUserKeyColId = 'col_1';
+
+    // 2. Uploaded Main File State (if user switches to Upload Main File tab)
+    let mainWorkbook = null;
+    let mainRawSheetRows = [];
+
+    // 3. Multiple Lookup Source Files State
+    // Each entry in lookupSources:
+    // {
+    //   id, fileName, shortLabel, theme,
+    //   workbook, sheetName, mode ('xlookup'|'hlookup'),
+    //   headerRowIdx, rawRows, detectedHeaders: [{name, index}],
+    //   selectedKeyIndex, selectedReturnColIndices: Set,
+    //   keyMap: Map (normalizedKey -> rowArray), uniqueKeyCount: number
+    // }
+    let lookupSources = [];
+    let activeSourceId = null;
+    let sourceCounter = 0;
+
+    // 4. Unified Column Arrangement, Widths, Custom Labels, Alignments & Visibility (Ver 5)
+    // Every column (input or extracted) has a unique `colKey`:
+    //   - Input column: `user:${col.id}`
+    //   - Side-by-Side extracted column: `ext:${src.id}:${h.index}`
+    //   - Consolidated extracted column: `cons:${normName}`
+    let displayColumnOrder = [];         // Ordered array of colKeys
+    let columnWidths = {};               // colKey -> number (px, min 70, default 165)
+    let columnCustomLabels = {};         // colKey -> custom header title string
+    let columnAlignments = {};           // colKey -> 'left' | 'center' | 'right'
+    let hiddenColumnsForPrint = new Set(); // colKeys hidden from print/export
+    let draggedColKey = null;
+
+    /*************************************************************************
+     * UTILITY: TOAST NOTIFICATION & STRING HELPERS
+     *************************************************************************/
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        info: 'bg-slate-800 text-white border-slate-700',
+        success: 'bg-emerald-600 text-white border-emerald-700',
+        warning: 'bg-amber-500 text-white border-amber-600'
+      };
+      const toast = document.createElement('div');
+      toast.className = `px-4 py-2.5 rounded-lg shadow-lg border text-xs font-semibold transition-all duration-300 pointer-events-auto ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function escapeHtml(val) {
+      if (val === null || val === undefined) return '';
+      return String(val)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function normalizeKey(val) {
+      if (val === null || val === undefined) return '';
+      return String(val).trim().toLowerCase();
+    }
+
+    function getShortFileName(fileName) {
+      return String(fileName || 'File').replace(/\.(xlsx|xls|csv)$/i, '');
+    }
+
+    function getActiveSource() {
+      return lookupSources.find(s => s.id === activeSourceId) || lookupSources[0] || null;
+    }
+
+    /*************************************************************************
+     * SMART HEADER DETECTION & HLOOKUP TRANSPOSITION
+     *************************************************************************/
+    function detectHeaderRowIndex(rows) {
+      let bestRow = 0;
+      let maxNonEmpty = 0;
+      const scanLimit = Math.min(rows.length, 25);
+
+      for (let i = 0; i < scanLimit; i++) {
+        const row = rows[i] || [];
+        const nonEmptyCount = row.filter(
+          cell => cell !== null && cell !== undefined && String(cell).trim() !== ''
+        ).length;
+        if (nonEmptyCount > maxNonEmpty) {
+          maxNonEmpty = nonEmptyCount;
+          bestRow = i;
+        }
+      }
+      return bestRow;
+    }
+
+    function extractHeadersAtRow(rows, headerRowIdx) {
+      const rawHeader = rows[headerRowIdx] || [];
+      const maxCols = rows.reduce((max, r) => Math.max(max, r ? r.length : 0), rawHeader.length);
+      const headers = [];
+      const seen = {};
+
+      for (let c = 0; c < maxCols; c++) {
+        let val = rawHeader[c] !== undefined && rawHeader[c] !== null ? String(rawHeader[c]).trim() : '';
+        if (!val) val = `Column_${c + 1}`;
+        if (seen[val]) {
+          seen[val]++;
+          val = `${val}_${seen[val]}`;
+        } else {
+          seen[val] = 1;
+        }
+        headers.push({ name: val, index: c });
+      }
+      return headers;
+    }
+
+    function transposeMatrix(matrix) {
+      if (!matrix || matrix.length === 0) return [];
+      const maxCols = matrix.reduce((max, r) => Math.max(max, r ? r.length : 0), 0);
+      const transposed = [];
+      for (let c = 0; c < maxCols; c++) {
+        const newRow = [];
+        for (let r = 0; r < matrix.length; r++) {
+          newRow.push(matrix[r] && matrix[r][c] !== undefined ? matrix[r][c] : '');
+        }
+        transposed.push(newRow);
+      }
+      return transposed;
+    }
+
+    /*************************************************************************
+     * MULTI-FILE LOOKUP SOURCE HANDLING (STEP 1)
+     *************************************************************************/
+    function rebuildSourceKeyMap(source) {
+      const map = new Map();
+      if (!source || !source.rawRows.length || !source.detectedHeaders.length) {
+        if (source) {
+          source.keyMap = map;
+          source.uniqueKeyCount = 0;
+        }
+        return;
+      }
+
+      for (let r = source.headerRowIdx + 1; r < source.rawRows.length; r++) {
+        const row = source.rawRows[r] || [];
+        const normKey = normalizeKey(row[source.selectedKeyIndex]);
+        if (normKey !== '' && !map.has(normKey)) {
+          map.set(normKey, row);
+        }
+      }
+      source.keyMap = map;
+      source.uniqueKeyCount = map.size;
+    }
+
+    function processSourceSheet(source, preselectDefaults = false, customHeaderRowIdx = null) {
+      const sheet = source.workbook.Sheets[source.sheetName];
+      const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      source.rawRows = source.mode === 'hlookup' ? transposeMatrix(raw) : raw;
+
+      const headerIdx = customHeaderRowIdx !== null
+        ? customHeaderRowIdx
+        : detectHeaderRowIndex(source.rawRows);
+
+      source.headerRowIdx = Math.max(0, Math.min(headerIdx, Math.max(0, source.rawRows.length - 1)));
+      source.detectedHeaders = extractHeadersAtRow(source.rawRows, source.headerRowIdx);
+
+      // Try to auto-match key column name with the first loaded file if preselecting defaults
+      if (preselectDefaults) {
+        let matchedKeyIdx = 0;
+        const primarySource = lookupSources[0];
+        if (primarySource && primarySource.id !== source.id && primarySource.detectedHeaders[primarySource.selectedKeyIndex]) {
+          const targetKeyName = normalizeKey(primarySource.detectedHeaders[primarySource.selectedKeyIndex].name);
+          const foundHeader = source.detectedHeaders.find(h => normalizeKey(h.name) === targetKeyName);
+          if (foundHeader) matchedKeyIdx = foundHeader.index;
+        }
+        source.selectedKeyIndex = matchedKeyIdx;
+        source.selectedReturnColIndices = new Set();
+        source.detectedHeaders.forEach(h => {
+          if (h.index !== source.selectedKeyIndex) {
+            source.selectedReturnColIndices.add(h.index);
+          }
+        });
+      } else {
+        if (source.selectedKeyIndex >= source.detectedHeaders.length) {
+          source.selectedKeyIndex = 0;
+        }
+      }
+
+      rebuildSourceKeyMap(source);
+    }
+
+    document.getElementById('lookupFileInput').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      let loadedCount = 0;
+      for (const file of files) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const data = new Uint8Array(buffer);
+          const wb = XLSX.read(data, { type: 'array' });
+          sourceCounter++;
+          const theme = FILE_COLOR_THEMES[(sourceCounter - 1) % FILE_COLOR_THEMES.length];
+
+          const newSource = {
+            id: 'src_' + Date.now() + '_' + sourceCounter,
+            fileName: file.name,
+            shortLabel: getShortFileName(file.name),
+            theme,
+            workbook: wb,
+            sheetName: wb.SheetNames[0],
+            mode: 'xlookup',
+            headerRowIdx: 0,
+            rawRows: [],
+            detectedHeaders: [],
+            selectedKeyIndex: 0,
+            selectedReturnColIndices: new Set(),
+            keyMap: new Map(),
+            uniqueKeyCount: 0
+          };
+
+          lookupSources.push(newSource);
+          processSourceSheet(newSource, true);
+          activeSourceId = newSource.id;
+          loadedCount++;
+        } catch (err) {
+          showToast(`Could not parse "${file.name}". Please check format.`, 'warning');
+        }
+      }
+
+      // Reset file input so user can re-upload or add more files later
+      e.target.value = '';
+
+      if (loadedCount > 0) {
+        refreshAllLookupUI();
+        showToast(
+          loadedCount === 1
+            ? `Added lookup file (${lookupSources.length} total loaded).`
+            : `Added ${loadedCount} lookup files (${lookupSources.length} total loaded).`,
+          'success'
+        );
+      }
+    });
+
+    function refreshAllLookupUI() {
+      renderLoadedFilesList();
+      syncActiveFileConfigPanel();
+      renderReturnColumnsCheckboxes();
+      updateAutocompleteSuggestions();
+      renderSourcePreviewTable();
+      renderInteractiveGrid();
+    }
+
+    function renderLoadedFilesList() {
+      const container = document.getElementById('loadedFilesList');
+      const badge = document.getElementById('lookupStatusBadge');
+      const clearAllBtn = document.getElementById('clearAllFilesBtn');
+      const syncBtn = document.getElementById('autoSyncKeysBtn');
+      const previewBtn = document.getElementById('toggleSourcePreviewBtn');
+
+      if (lookupSources.length === 0) {
+        badge.textContent = '0 Files Loaded';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600';
+        clearAllBtn.classList.add('hidden');
+        syncBtn.disabled = true;
+        previewBtn.disabled = true;
+        container.innerHTML = `<p class="text-xs text-slate-400 p-2 text-center">No lookup files uploaded yet. Upload 1 or more files above.</p>`;
+        return;
+      }
+
+      badge.textContent = `${lookupSources.length} File${lookupSources.length > 1 ? 's' : ''} Loaded`;
+      badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800';
+      clearAllBtn.classList.remove('hidden');
+      syncBtn.disabled = lookupSources.length < 2;
+      previewBtn.disabled = false;
+
+      if (!lookupSources.some(s => s.id === activeSourceId)) {
+        activeSourceId = lookupSources[0].id;
+      }
+
+      container.innerHTML = lookupSources.map((src, idx) => {
+        const isActive = src.id === activeSourceId;
+        const keyHeaderName = src.detectedHeaders[src.selectedKeyIndex]
+          ? src.detectedHeaders[src.selectedKeyIndex].name
+          : 'Col 1';
+        return `
+          <div data-select-source="${src.id}"
+            class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md cursor-pointer border transition text-xs ${
+              isActive
+                ? 'bg-white border-blue-500 shadow-sm ring-1 ring-blue-500/30'
+                : 'bg-white/60 border-slate-200 hover:bg-white'
+            }">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${src.theme.badgeBg} ${src.theme.badgeText}">
+                F${idx + 1}
+              </span>
+              <span class="font-semibold text-slate-800 truncate" title="${escapeHtml(src.fileName)}">
+                ${escapeHtml(src.fileName)}
+              </span>
+              <span class="text-[11px] text-slate-400 whitespace-nowrap">
+                (${src.uniqueKeyCount} keys · Key: <strong class="text-slate-600">${escapeHtml(keyHeaderName)}</strong>)
+              </span>
+            </div>
+            <button type="button" data-remove-source="${src.id}"
+              class="text-slate-400 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50 font-bold"
+              title="Remove this file">✕</button>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-select-source]').forEach(rowEl => {
+        rowEl.addEventListener('click', (e) => {
+          if (e.target.closest('[data-remove-source]')) return;
+          activeSourceId = rowEl.getAttribute('data-select-source');
+          renderLoadedFilesList();
+          syncActiveFileConfigPanel();
+          renderSourcePreviewTable();
+        });
+      });
+
+      container.querySelectorAll('[data-remove-source]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rmId = btn.getAttribute('data-remove-source');
+          const removed = lookupSources.find(s => s.id === rmId);
+          lookupSources = lookupSources.filter(s => s.id !== rmId);
+          if (activeSourceId === rmId) {
+            activeSourceId = lookupSources[0] ? lookupSources[0].id : null;
+          }
+          refreshAllLookupUI();
+          if (removed) showToast(`Removed "${removed.fileName}".`, 'info');
+        });
+      });
+    }
+
+    document.getElementById('clearAllFilesBtn').addEventListener('click', () => {
+      lookupSources = [];
+      activeSourceId = null;
+      document.getElementById('sourcePreviewCard').classList.add('hidden');
+      refreshAllLookupUI();
+      showToast('Cleared all loaded lookup files.', 'info');
+    });
+
+    // Sync Key Column Name Across All Files button
+    document.getElementById('autoSyncKeysBtn').addEventListener('click', () => {
+      const active = getActiveSource();
+      if (!active || !active.detectedHeaders[active.selectedKeyIndex]) return;
+      const targetKeyName = normalizeKey(active.detectedHeaders[active.selectedKeyIndex].name);
+      let matchedFiles = 0;
+
+      lookupSources.forEach(src => {
+        const match = src.detectedHeaders.find(h => normalizeKey(h.name) === targetKeyName);
+        if (match) {
+          src.selectedKeyIndex = match.index;
+          rebuildSourceKeyMap(src);
+          matchedFiles++;
+        }
+      });
+
+      refreshAllLookupUI();
+      showToast(`Synced key column "${active.detectedHeaders[active.selectedKeyIndex].name}" across ${matchedFiles} file(s).`, 'success');
+    });
+
+    function syncActiveFileConfigPanel() {
+      const active = getActiveSource();
+      const nameLabel = document.getElementById('activeFileNameLabel');
+      const activeKeyLabel = document.getElementById('activeFileKeyLabel');
+      const sheetSelect = document.getElementById('lookupSheetSelect');
+      const modeSelect = document.getElementById('lookupModeSelect');
+      const headerInput = document.getElementById('lookupHeaderRowInput');
+      const bannerBadge = document.getElementById('lookupHeaderBannerBadge');
+      const keySelect = document.getElementById('lookupKeyColSelect');
+
+      if (!active) {
+        nameLabel.textContent = 'None';
+        activeKeyLabel.textContent = 'Active File';
+        sheetSelect.innerHTML = '<option>Upload file first...</option>';
+        sheetSelect.disabled = true;
+        modeSelect.disabled = true;
+        headerInput.disabled = true;
+        headerInput.value = 1;
+        bannerBadge.textContent = 'Auto-detect active';
+        keySelect.innerHTML = '';
+        keySelect.disabled = true;
+        return;
+      }
+
+      nameLabel.textContent = active.fileName;
+      activeKeyLabel.textContent = active.shortLabel;
+
+      sheetSelect.innerHTML = active.workbook.SheetNames.map(
+        n => `<option value="${escapeHtml(n)}" ${n === active.sheetName ? 'selected' : ''}>${escapeHtml(n)}</option>`
+      ).join('');
+      sheetSelect.disabled = false;
+
+      modeSelect.value = active.mode;
+      modeSelect.disabled = false;
+
+      headerInput.disabled = false;
+      headerInput.max = Math.max(1, active.rawRows.length);
+      headerInput.value = active.headerRowIdx + 1;
+
+      bannerBadge.textContent = active.headerRowIdx > 0
+        ? `Skipped ${active.headerRowIdx} top title row(s)`
+        : 'Header at Row 1';
+
+      keySelect.innerHTML = active.detectedHeaders.map(
+        h => `<option value="${h.index}" ${h.index === active.selectedKeyIndex ? 'selected' : ''}>${escapeHtml(h.name)}</option>`
+      ).join('');
+      keySelect.disabled = false;
+    }
+
+    document.getElementById('lookupSheetSelect').addEventListener('change', (e) => {
+      const active = getActiveSource();
+      if (!active) return;
+      active.sheetName = e.target.value;
+      processSourceSheet(active, true);
+      refreshAllLookupUI();
+    });
+
+    document.getElementById('lookupModeSelect').addEventListener('change', (e) => {
+      const active = getActiveSource();
+      if (!active) return;
+      active.mode = e.target.value;
+      processSourceSheet(active, true);
+      refreshAllLookupUI();
+    });
+
+    document.getElementById('lookupHeaderRowInput').addEventListener('change', (e) => {
+      const active = getActiveSource();
+      if (!active) return;
+      const manualRowIdx = Math.max(0, parseInt(e.target.value, 10) - 1);
+      processSourceSheet(active, false, manualRowIdx);
+      refreshAllLookupUI();
+    });
+
+    document.getElementById('lookupKeyColSelect').addEventListener('change', (e) => {
+      const active = getActiveSource();
+      if (!active) return;
+      active.selectedKeyIndex = parseInt(e.target.value, 10);
+      rebuildSourceKeyMap(active);
+      refreshAllLookupUI();
+    });
+
+    document.getElementById('multiFileMergeModeSelect').addEventListener('change', (e) => {
+      const hint = document.getElementById('mergeModeHint');
+      if (e.target.value === 'consolidate') {
+        hint.textContent = 'Unifies matching column names across files (First-Match Wins from File 1 → File N). Great for monthly or branch sheets!';
+      } else {
+        hint.textContent = 'Extracts selected columns from every file side-by-side for the same lookup value.';
+      }
+      renderInteractiveGrid();
+    });
+
+    /*************************************************************************
+     * STEP 2: MULTI-FILE RETURN COLUMNS & PER-FILE KEY MAPPING
+     *************************************************************************/
+    function renderReturnColumnsCheckboxes() {
+      const container = document.getElementById('returnColsList');
+      if (lookupSources.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 p-3 text-center">Upload one or more Lookup Excel files in Step 1 to configure each file's Match Column and Return Columns...</p>`;
+        return;
+      }
+
+      container.innerHTML = lookupSources.map((src, sIdx) => {
+        const colsHtml = src.detectedHeaders.map(h => {
+          const checked = src.selectedReturnColIndices.has(h.index) ? 'checked' : '';
+          const isKey = h.index === src.selectedKeyIndex;
+          return `
+            <label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-50 border border-transparent hover:border-slate-200 cursor-pointer text-xs text-slate-700">
+              <input type="checkbox" class="return-col-cb rounded text-blue-600 focus:ring-blue-500"
+                data-src-id="${src.id}" value="${h.index}" ${checked} />
+              <span class="truncate font-medium" title="${escapeHtml(h.name)}">${escapeHtml(h.name)}</span>
+              ${isKey ? '<span class="text-[10px] text-amber-600 font-bold" title="Currently selected Match Key">🔑</span>' : ''}
+            </label>
+          `;
+        }).join('');
+
+        const keyOptionsHtml = src.detectedHeaders.map(
+          h => `<option value="${h.index}" ${h.index === src.selectedKeyIndex ? 'selected' : ''}>${escapeHtml(h.name)}</option>`
+        ).join('');
+
+        return `
+          <div class="bg-white rounded-lg border ${src.theme.border} p-2.5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${src.theme.badgeBg} ${src.theme.badgeText}">
+                  File ${sIdx + 1}
+                </span>
+                <span class="text-xs font-bold text-slate-800 truncate max-w-[160px]" title="${escapeHtml(src.fileName)}">
+                  ${escapeHtml(src.fileName)}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-[11px] font-semibold text-slate-500">Match Key:</label>
+                <select data-per-file-key="${src.id}" class="rounded border border-slate-300 px-2 py-0.5 text-[11px] font-semibold bg-slate-50 text-slate-800">
+                  ${keyOptionsHtml}
+                </select>
+                <button type="button" data-file-select-all="${src.id}" class="text-[11px] font-semibold text-blue-600 hover:underline">All</button>
+                <button type="button" data-file-clear-all="${src.id}" class="text-[11px] font-semibold text-slate-400 hover:underline">None</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+              ${colsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Per-file checkbox change
+      container.querySelectorAll('.return-col-cb').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const srcId = e.target.getAttribute('data-src-id');
+          const colIdx = parseInt(e.target.value, 10);
+          const src = lookupSources.find(s => s.id === srcId);
+          if (!src) return;
+          if (e.target.checked) {
+            src.selectedReturnColIndices.add(colIdx);
+          } else {
+            src.selectedReturnColIndices.delete(colIdx);
+          }
+          if (document.getElementById('liveAutoLookupToggle').checked) {
+            renderInteractiveGrid();
+          }
+        });
+      });
+
+      // Per-file Match Key dropdown change
+      container.querySelectorAll('[data-per-file-key]').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const srcId = e.target.getAttribute('data-per-file-key');
+          const src = lookupSources.find(s => s.id === srcId);
+          if (!src) return;
+          src.selectedKeyIndex = parseInt(e.target.value, 10);
+          rebuildSourceKeyMap(src);
+          refreshAllLookupUI();
+        });
+      });
+
+      // Per-file Select All / None buttons
+      container.querySelectorAll('[data-file-select-all]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const srcId = btn.getAttribute('data-file-select-all');
+          const src = lookupSources.find(s => s.id === srcId);
+          if (!src) return;
+          src.detectedHeaders.forEach(h => src.selectedReturnColIndices.add(h.index));
+          renderReturnColumnsCheckboxes();
+          renderInteractiveGrid();
+        });
+      });
+
+      container.querySelectorAll('[data-file-clear-all]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const srcId = btn.getAttribute('data-file-clear-all');
+          const src = lookupSources.find(s => s.id === srcId);
+          if (!src) return;
+          src.selectedReturnColIndices.clear();
+          renderReturnColumnsCheckboxes();
+          renderInteractiveGrid();
+        });
+      });
+    }
+
+    document.getElementById('selectAllReturnColsBtn').addEventListener('click', () => {
+      lookupSources.forEach(src => {
+        src.detectedHeaders.forEach(h => src.selectedReturnColIndices.add(h.index));
+      });
+      renderReturnColumnsCheckboxes();
+      renderInteractiveGrid();
+    });
+
+    document.getElementById('clearAllReturnColsBtn').addEventListener('click', () => {
+      lookupSources.forEach(src => src.selectedReturnColIndices.clear());
+      renderReturnColumnsCheckboxes();
+      renderInteractiveGrid();
+    });
+
+    /*************************************************************************
+     * AUTOCOMPLETE SUGGESTIONS ACROSS ALL LOADED FILES
+     *************************************************************************/
+    function updateAutocompleteSuggestions() {
+      const datalist = document.getElementById('lookupKeySuggestions');
+      if (lookupSources.length === 0) {
+        datalist.innerHTML = '';
+        document.getElementById('lookupSummaryText').textContent = '0 total keys across 0 files';
+        return;
+      }
+
+      const globalSeen = new Map(); // normKey -> { cleanKey, files: [], sampleInfo: '' }
+
+      lookupSources.forEach((src, sIdx) => {
+        for (let r = src.headerRowIdx + 1; r < Math.min(src.rawRows.length, src.headerRowIdx + 400); r++) {
+          const row = src.rawRows[r] || [];
+          const keyVal = row[src.selectedKeyIndex];
+          if (keyVal !== undefined && keyVal !== null && String(keyVal).trim() !== '') {
+            const cleanKey = String(keyVal).trim();
+            const norm = normalizeKey(cleanKey);
+            if (!globalSeen.has(norm)) {
+              const previewParts = src.detectedHeaders
+                .filter(h => h.index !== src.selectedKeyIndex)
+                .slice(0, 2)
+                .map(h => row[h.index])
+                .filter(Boolean);
+              globalSeen.set(norm, {
+                cleanKey,
+                files: [`F${sIdx + 1}:${src.shortLabel}`],
+                sampleInfo: previewParts.join(' | ')
+              });
+            } else {
+              const entry = globalSeen.get(norm);
+              const tag = `F${sIdx + 1}:${src.shortLabel}`;
+              if (!entry.files.includes(tag)) entry.files.push(tag);
+            }
+          }
+        }
+      });
+
+      const options = [];
+      let count = 0;
+      for (const [, info] of globalSeen.entries()) {
+        if (count >= 400) break;
+        const fileTag = `[${info.files.join(', ')}]`;
+        const label = info.sampleInfo
+          ? `${info.cleanKey} — ${info.sampleInfo} ${fileTag}`
+          : `${info.cleanKey} ${fileTag}`;
+        options.push(`<option value="${escapeHtml(info.cleanKey)}">${escapeHtml(label)}</option>`);
+        count++;
+      }
+
+      datalist.innerHTML = options.join('');
+      const totalUnique = globalSeen.size;
+      document.getElementById('lookupSummaryText').textContent =
+        `${totalUnique} unique key(s) across ${lookupSources.length} file(s)`;
+    }
+
+    /*************************************************************************
+     * MULTI-FILE SOURCE TABLE INSPECTOR WITH "+ ADD TO MY TABLE"
+     *************************************************************************/
+    document.getElementById('toggleSourcePreviewBtn').addEventListener('click', () => {
+      const card = document.getElementById('sourcePreviewCard');
+      card.classList.toggle('hidden');
+      renderSourcePreviewTable();
+    });
+    document.getElementById('closeSourcePreviewBtn').addEventListener('click', () => {
+      document.getElementById('sourcePreviewCard').classList.add('hidden');
+    });
+
+    // 1-Click Add All Unique Keys from All Loaded Files
+    document.getElementById('addAllUniqueKeysBtn').addEventListener('click', () => {
+      if (lookupSources.length === 0) return;
+      const existingNorms = new Set(
+        userRows
+          .map(r => normalizeKey(r[selectedUserKeyColId]))
+          .filter(Boolean)
+      );
+
+      // Remove empty default rows if we are populating keys
+      userRows = userRows.filter(r =>
+        userColumns.some(c => r[c.id] !== undefined && String(r[c.id]).trim() !== '')
+      );
+
+      let addedCount = 0;
+      lookupSources.forEach(src => {
+        for (let r = src.headerRowIdx + 1; r < src.rawRows.length; r++) {
+          const row = src.rawRows[r] || [];
+          const rawKey = row[src.selectedKeyIndex];
+          if (rawKey !== undefined && rawKey !== null && String(rawKey).trim() !== '') {
+            const cleanKey = String(rawKey).trim();
+            const norm = normalizeKey(cleanKey);
+            if (!existingNorms.has(norm)) {
+              existingNorms.add(norm);
+              const newRow = {};
+              newRow[selectedUserKeyColId] = cleanKey;
+              userRows.push(newRow);
+              addedCount++;
+            }
+          }
+        }
+      });
+
+      if (userRows.length === 0) userRows.push({});
+      renderInteractiveGrid();
+      showToast(`Added ${addedCount} unique lookup key(s) across ${lookupSources.length} file(s)!`, 'success');
+    });
+
+    function renderSourcePreviewTable() {
+      const container = document.getElementById('sourcePreviewContainer');
+      const tabsContainer = document.getElementById('previewFileTabs');
+      const active = getActiveSource();
+
+      if (!active || lookupSources.length === 0) {
+        tabsContainer.innerHTML = '';
+        container.innerHTML = '';
+        return;
+      }
+
+      // Render file switcher tabs inside preview card
+      tabsContainer.innerHTML = lookupSources.map((src, idx) => {
+        const isCurrent = src.id === active.id;
+        return `
+          <button type="button" data-preview-tab="${src.id}"
+            class="px-3 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 ${
+              isCurrent
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+            }">
+            <span>F${idx + 1}: ${escapeHtml(src.fileName)}</span>
+            <span class="text-[10px] opacity-80">(${src.uniqueKeyCount} keys)</span>
+          </button>
+        `;
+      }).join('');
+
+      tabsContainer.querySelectorAll('[data-preview-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeSourceId = btn.getAttribute('data-preview-tab');
+          renderLoadedFilesList();
+          syncActiveFileConfigPanel();
+          renderSourcePreviewTable();
+        });
+      });
+
+      let html = `<table class="w-full text-xs border-collapse"><thead class="bg-indigo-50 text-indigo-950 sticky top-0"><tr>`;
+      html += `<th class="p-2 border border-slate-200 text-center w-28">Quick Action</th>`;
+      active.detectedHeaders.forEach(h => {
+        const isKey = h.index === active.selectedKeyIndex;
+        html += `<th class="p-2 border border-slate-200 ${isKey ? 'bg-indigo-100 font-bold' : ''}">${escapeHtml(h.name)} ${isKey ? '🔑' : ''}</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      const maxPreview = Math.min(active.rawRows.length, active.headerRowIdx + 50);
+      for (let r = active.headerRowIdx + 1; r < maxPreview; r++) {
+        const row = active.rawRows[r] || [];
+        const keyVal = row[active.selectedKeyIndex] !== undefined ? String(row[active.selectedKeyIndex]).trim() : '';
+        if (!keyVal && row.every(c => !c)) continue;
+
+        html += `<tr class="hover:bg-slate-50">`;
+        html += `<td class="p-1.5 border border-slate-200 text-center">
+          <button type="button" data-add-key="${escapeHtml(keyVal)}" class="add-from-source-btn px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white font-semibold text-[11px] transition">
+            + Add to Table
+          </button>
+        </td>`;
+        active.detectedHeaders.forEach(h => {
+          html += `<td class="p-2 border border-slate-200 whitespace-nowrap">${escapeHtml(row[h.index])}</td>`;
+        });
+        html += `</tr>`;
+      }
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+
+      container.querySelectorAll('.add-from-source-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.getAttribute('data-add-key');
+          appendKeyToUserTable(val);
+        });
+      });
+    }
+
+    /*************************************************************************
+     * USER SEARCH COLUMN DROPDOWN SYNC
+     *************************************************************************/
+    function syncUserKeyColumnDropdown() {
+      const select = document.getElementById('userKeyColSelect');
+      if (!userColumns.some(c => c.id === selectedUserKeyColId) && userColumns.length > 0) {
+        selectedUserKeyColId = userColumns[0].id;
+      }
+      select.innerHTML = userColumns.map(
+        c => `<option value="${c.id}" ${c.id === selectedUserKeyColId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+      ).join('');
+    }
+
+    document.getElementById('userKeyColSelect').addEventListener('change', (e) => {
+      selectedUserKeyColId = e.target.value;
+      renderInteractiveGrid();
+    });
+
+    /*************************************************************************
+     * MULTI-FILE EXTRACTED COLUMNS DESCRIPTOR ENGINE
+     * Supports:
+     *  - 'side_by_side': Every selected column from each file becomes a column
+     *  - 'consolidate': Columns with the same name across files are unified
+     *                   and filled by the first file that has a match!
+     *************************************************************************/
+    function getMultiFileExtractedColumns() {
+      const mergeMode = document.getElementById('multiFileMergeModeSelect').value;
+      const multipleFilesLoaded = lookupSources.length > 1;
+
+      if (mergeMode === 'consolidate') {
+        // Group selected return columns by normalized header name across all files
+        const unifiedMap = new Map(); // normName -> { displayHeader, sources: [{ src, colIndex }] }
+        lookupSources.forEach((src, sIdx) => {
+          src.detectedHeaders.forEach(h => {
+            if (!src.selectedReturnColIndices.has(h.index)) return;
+            const normName = normalizeKey(h.name);
+            if (!unifiedMap.has(normName)) {
+              unifiedMap.set(normName, {
+                mode: 'consolidate',
+                displayHeader: h.name,
+                exportHeader: h.name,
+                badgeText: multipleFilesLoaded ? `All Files` : src.shortLabel,
+                theme: FILE_COLOR_THEMES[0],
+                bindings: [{ src, colIndex: h.index, fileIndex: sIdx }]
+              });
+            } else {
+              unifiedMap.get(normName).bindings.push({ src, colIndex: h.index, fileIndex: sIdx });
+            }
+          });
+        });
+        return Array.from(unifiedMap.values());
+      }
+
+      // Default: 'side_by_side' mode
+      // Check if any header names collide across files so we can label exports cleanly
+      const nameCounts = {};
+      lookupSources.forEach(src => {
+        src.detectedHeaders.forEach(h => {
+          if (src.selectedReturnColIndices.has(h.index)) {
+            const key = normalizeKey(h.name);
+            nameCounts[key] = (nameCounts[key] || 0) + 1;
+          }
+        });
+      });
+
+      const columns = [];
+      lookupSources.forEach((src, sIdx) => {
+        src.detectedHeaders.forEach(h => {
+          if (!src.selectedReturnColIndices.has(h.index)) return;
+          const hasCollision = nameCounts[normalizeKey(h.name)] > 1;
+          const defaultExportHeader = multipleFilesLoaded && hasCollision
+            ? `[${src.shortLabel}] ${h.name}`
+            : h.name;
+          columns.push({
+            colKey: `ext:${src.id}:${h.index}`,
+            mode: 'side_by_side',
+            displayHeader: h.name,
+            exportHeader: defaultExportHeader,
+            badgeText: multipleFilesLoaded ? `F${sIdx + 1}: ${src.shortLabel}` : src.shortLabel,
+            theme: src.theme,
+            bindings: [{ src, colIndex: h.index, fileIndex: sIdx }]
+          });
+        });
+      });
+      return columns;
+    }
+
+    // Assign stable colKey to consolidate mode columns as well and build unified descriptors
+    function getUnifiedResultantColumns(includeHidden = false) {
+      // 1. Build User Input Column Descriptors
+      const rawUserCols = userColumns.map(col => {
+        const colKey = `user:${col.id}`;
+        const customLabel = columnCustomLabels[colKey];
+        const finalTitle = customLabel !== undefined ? customLabel : col.name;
+        return {
+          colKey,
+          kind: 'user',
+          userColId: col.id,
+          isSearchKey: col.id === selectedUserKeyColId,
+          origHeader: col.name,
+          displayHeader: finalTitle,
+          exportHeader: finalTitle,
+          badgeText: col.id === selectedUserKeyColId ? 'Search Key' : 'Input Col',
+          width: columnWidths[colKey] || (col.id === selectedUserKeyColId ? 185 : 160),
+          align: columnAlignments[colKey] || 'left',
+          hidden: hiddenColumnsForPrint.has(colKey)
+        };
+      });
+
+      // 2. Build Extracted Multi-File Column Descriptors
+      const rawExtracted = getMultiFileExtractedColumns().map(eCol => {
+        const colKey = eCol.colKey || `cons:${normalizeKey(eCol.displayHeader)}`;
+        const customLabel = columnCustomLabels[colKey];
+        const finalDisplay = customLabel !== undefined ? customLabel : eCol.displayHeader;
+        const finalExport = customLabel !== undefined ? customLabel : eCol.exportHeader;
+        return {
+          ...eCol,
+          colKey,
+          kind: 'extracted',
+          origHeader: eCol.displayHeader,
+          displayHeader: finalDisplay,
+          exportHeader: finalExport,
+          width: columnWidths[colKey] || 165,
+          align: columnAlignments[colKey] || 'left',
+          hidden: hiddenColumnsForPrint.has(colKey)
+        };
+      });
+
+      const allAvailable = [...rawUserCols, ...rawExtracted];
+      const availableMap = new Map(allAvailable.map(c => [c.colKey, c]));
+
+      // Synchronize displayColumnOrder: keep existing valid keys in user's arranged sequence, append new ones
+      const nextOrder = [];
+      displayColumnOrder.forEach(k => {
+        if (availableMap.has(k)) nextOrder.push(k);
+      });
+      allAvailable.forEach(c => {
+        if (!nextOrder.includes(c.colKey)) nextOrder.push(c.colKey);
+      });
+      displayColumnOrder = nextOrder;
+
+      const orderedCols = displayColumnOrder.map(k => availableMap.get(k)).filter(Boolean);
+      return includeHidden ? orderedCols : orderedCols.filter(c => !c.hidden);
+    }
+
+    function moveColumnInOrder(colKey, directionOrTargetIndex) {
+      getUnifiedResultantColumns(true);
+      const currIdx = displayColumnOrder.indexOf(colKey);
+      if (currIdx === -1) return;
+
+      let targetIdx = currIdx;
+      if (directionOrTargetIndex === 'left') targetIdx = Math.max(0, currIdx - 1);
+      else if (directionOrTargetIndex === 'right') targetIdx = Math.min(displayColumnOrder.length - 1, currIdx + 1);
+      else if (directionOrTargetIndex === 'top') targetIdx = 0;
+      else if (directionOrTargetIndex === 'bottom') targetIdx = displayColumnOrder.length - 1;
+      else if (typeof directionOrTargetIndex === 'number') targetIdx = directionOrTargetIndex;
+
+      if (targetIdx === currIdx) return;
+      displayColumnOrder.splice(currIdx, 1);
+      displayColumnOrder.splice(targetIdx, 0, colKey);
+      renderInteractiveGrid();
+      if (!document.getElementById('layoutStudioModal').classList.contains('hidden')) {
+        renderStudioColumnsList();
+      }
+    }
+
+    function autoFitSingleColumnWidth(colKey) {
+      const allCols = getUnifiedResultantColumns(true);
+      const colDesc = allCols.find(c => c.colKey === colKey);
+      if (!colDesc) return;
+
+      const notFoundText = document.getElementById('notFoundInput').value;
+      let maxChars = String(colDesc.displayHeader || '').length + 6;
+
+      userRows.forEach(rowObj => {
+        let cellText = '';
+        if (colDesc.kind === 'user') {
+          cellText = rowObj[colDesc.userColId] !== undefined ? String(rowObj[colDesc.userColId]) : '';
+        } else {
+          const normKey = normalizeKey(rowObj[selectedUserKeyColId]);
+          cellText = evaluateExtractedColumnForKey(colDesc, normKey, notFoundText).text;
+        }
+        if (cellText.length > maxChars) maxChars = cellText.length;
+      });
+
+      const computedPx = Math.max(95, Math.min(440, Math.round(maxChars * 7.8 + 38)));
+      columnWidths[colKey] = computedPx;
+    }
+
+    function autoFitAllColumnWidths() {
+      const allCols = getUnifiedResultantColumns(true);
+      allCols.forEach(c => autoFitSingleColumnWidth(c.colKey));
+      renderInteractiveGrid();
+      if (!document.getElementById('layoutStudioModal').classList.contains('hidden')) {
+        renderStudioColumnsList();
+      }
+      showToast('Auto-fitted all column widths to content!', 'success');
+    }
+
+    // Evaluates a single extracted column descriptor for a given normalized search key
+    function evaluateExtractedColumnForKey(colDesc, normSearchVal, notFoundText) {
+      if (normSearchVal === '') {
+        return { text: '', found: false, empty: true, matchedFileLabel: '' };
+      }
+
+      for (const binding of colDesc.bindings) {
+        const matchedRow = binding.src.keyMap.get(normSearchVal);
+        if (matchedRow) {
+          const rawVal = matchedRow[binding.colIndex];
+          const valStr = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
+          // In consolidate mode, if a file has the key and a non-empty cell value (or if it's the only match), return it
+          if (colDesc.mode === 'consolidate') {
+            if (valStr.trim() !== '') {
+              return {
+                text: valStr,
+                found: true,
+                empty: false,
+                matchedFileLabel: `F${binding.fileIndex + 1}: ${binding.src.shortLabel}`
+              };
+            }
+          } else {
+            return {
+              text: valStr,
+              found: true,
+              empty: false,
+              matchedFileLabel: `F${binding.fileIndex + 1}: ${binding.src.shortLabel}`
+            };
+          }
+        }
+      }
+
+      // Second pass for consolidate mode: if key was matched in at least one file but that cell was blank
+      if (colDesc.mode === 'consolidate') {
+        for (const binding of colDesc.bindings) {
+          if (binding.src.keyMap.has(normSearchVal)) {
+            return {
+              text: '',
+              found: true,
+              empty: false,
+              matchedFileLabel: `F${binding.fileIndex + 1}: ${binding.src.shortLabel}`
+            };
+          }
+        }
+      }
+
+      return { text: notFoundText, found: false, empty: false, matchedFileLabel: '' };
+    }
+
+    function isKeyMatchedInAnyFile(normSearchVal) {
+      if (!normSearchVal) return false;
+      return lookupSources.some(src => src.keyMap.has(normSearchVal));
+    }
+
+    /*************************************************************************
+     * RENDER INTERACTIVE SPREADSHEET TABLE (STEP 3 - UNIFIED ORDER & RESIZE)
+     *************************************************************************/
+    function renderInteractiveGrid() {
+      syncUserKeyColumnDropdown();
+      const gridTable = document.getElementById('interactiveGrid');
+      const colgroup = document.getElementById('gridColgroup');
+      const thead = document.getElementById('gridThead');
+      const tbody = document.getElementById('gridTbody');
+      const visibleCols = getUnifiedResultantColumns(false);
+      const allCols = getUnifiedResultantColumns(true);
+      const notFoundText = document.getElementById('notFoundInput').value;
+
+      // 0. Render <colgroup> with exact pixel widths so resizing works smoothly
+      const rowNumWidth = 44;
+      const actionColWidth = 48;
+      let totalTableWidth = rowNumWidth + actionColWidth;
+      let colgroupHtml = `<col style="width:${rowNumWidth}px; min-width:${rowNumWidth}px;" />`;
+      visibleCols.forEach(colDesc => {
+        const w = colDesc.width || 165;
+        totalTableWidth += w;
+        colgroupHtml += `<col data-colgroup-key="${escapeHtml(colDesc.colKey)}" style="width:${w}px; min-width:${w}px;" />`;
+      });
+      colgroupHtml += `<col style="width:${actionColWidth}px; min-width:${actionColWidth}px;" />`;
+      colgroup.innerHTML = colgroupHtml;
+      gridTable.style.width = `${totalTableWidth}px`;
+
+      // 1. Render Table Header (Unified Reorderable & Resizable Columns)
+      let headHtml = `<tr>`;
+      headHtml += `<th class="px-2 py-2.5 text-center border-r border-slate-200 text-slate-400 font-semibold">#</th>`;
+
+      visibleCols.forEach((colDesc, vIdx) => {
+        const isFirst = vIdx === 0;
+        const isLast = vIdx === visibleCols.length - 1;
+        const alignClass = colDesc.align === 'right' ? 'text-right' : colDesc.align === 'center' ? 'text-center' : 'text-left';
+
+        if (colDesc.kind === 'user') {
+          const isSearchKey = colDesc.isSearchKey;
+          headHtml += `
+            <th draggable="true" data-col-key="${escapeHtml(colDesc.colKey)}"
+              class="relative group px-2.5 py-2 border-r border-slate-200 ${isSearchKey ? 'bg-blue-50/95 text-blue-900' : 'bg-slate-100'}">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between gap-1">
+                  <div class="flex items-center gap-1 min-w-0">
+                    <span class="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 text-xs" title="Drag header to reorder column">⠿</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${isSearchKey ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}">
+                      ${escapeHtml(colDesc.badgeText)}
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-400" data-width-label="${escapeHtml(colDesc.colKey)}">${colDesc.width}px</span>
+                  </div>
+                  <div class="flex items-center gap-0.5">
+                    <button type="button" data-move-col="${escapeHtml(colDesc.colKey)}" data-move-dir="left" ${isFirst ? 'disabled' : ''}
+                      class="px-1 py-0.5 rounded text-[10px] text-slate-500 hover:bg-white hover:text-blue-600 disabled:opacity-25" title="Move column left">◀</button>
+                    <button type="button" data-move-col="${escapeHtml(colDesc.colKey)}" data-move-dir="right" ${isLast ? 'disabled' : ''}
+                      class="px-1 py-0.5 rounded text-[10px] text-slate-500 hover:bg-white hover:text-blue-600 disabled:opacity-25" title="Move column right">▶</button>
+                    ${userColumns.length > 1 ? `
+                      <button type="button" data-col-delete="${escapeHtml(colDesc.userColId)}" class="text-slate-400 hover:text-rose-600 px-1 text-xs" title="Delete input column">✕</button>
+                    ` : ''}
+                  </div>
+                </div>
+                <div class="flex items-center">
+                  <input type="text" data-col-rename-unified="${escapeHtml(colDesc.colKey)}" value="${escapeHtml(colDesc.displayHeader)}"
+                    class="bg-transparent font-bold text-xs text-slate-800 focus:bg-white focus:px-1.5 py-0.5 rounded border border-transparent focus:border-blue-400 focus:outline-none w-full ${alignClass}"
+                    title="Click to rename column header" />
+                </div>
+              </div>
+              <div class="col-resize-handle" data-resize-col="${escapeHtml(colDesc.colKey)}" title="Drag to resize width (Double-click to auto-fit)"></div>
+            </th>
+          `;
+        } else {
+          // Extracted Lookup Column Header (Also Reorderable, Renamable, and Resizable!)
+          headHtml += `
+            <th draggable="true" data-col-key="${escapeHtml(colDesc.colKey)}"
+              class="relative group px-2.5 py-2 border-r ${colDesc.theme.border} ${colDesc.theme.headerBg} text-slate-900 font-bold">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between gap-1">
+                  <div class="flex items-center gap-1 min-w-0">
+                    <span class="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 text-xs" title="Drag header to reorder column">⠿</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold truncate ${colDesc.theme.badgeBg} ${colDesc.theme.badgeText}">
+                      ${escapeHtml(colDesc.badgeText)}
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-500" data-width-label="${escapeHtml(colDesc.colKey)}">${colDesc.width}px</span>
+                  </div>
+                  <div class="flex items-center gap-0.5">
+                    <button type="button" data-move-col="${escapeHtml(colDesc.colKey)}" data-move-dir="left" ${isFirst ? 'disabled' : ''}
+                      class="px-1 py-0.5 rounded text-[10px] text-slate-600 hover:bg-white hover:text-blue-600 disabled:opacity-25" title="Move column left">◀</button>
+                    <button type="button" data-move-col="${escapeHtml(colDesc.colKey)}" data-move-dir="right" ${isLast ? 'disabled' : ''}
+                      class="px-1 py-0.5 rounded text-[10px] text-slate-600 hover:bg-white hover:text-blue-600 disabled:opacity-25" title="Move column right">▶</button>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-emerald-700 text-xs">⚡</span>
+                  <input type="text" data-col-rename-unified="${escapeHtml(colDesc.colKey)}" value="${escapeHtml(colDesc.displayHeader)}"
+                    class="bg-transparent font-bold text-xs text-slate-900 focus:bg-white focus:px-1.5 py-0.5 rounded border border-transparent focus:border-emerald-500 focus:outline-none w-full ${alignClass}"
+                    title="Click to customize column header for print/export" />
+                </div>
+              </div>
+              <div class="col-resize-handle" data-resize-col="${escapeHtml(colDesc.colKey)}" title="Drag to resize width (Double-click to auto-fit)"></div>
+            </th>
+          `;
+        }
+      });
+
+      headHtml += `<th class="px-2 py-2.5 text-center text-slate-400">Row</th></tr>`;
+      thead.innerHTML = headHtml;
+
+      // 2. Render Table Body Rows following the exact unified column sequence
+      let bodyHtml = '';
+      let matchedCount = 0;
+      let nonEmptyKeysCount = 0;
+
+      userRows.forEach((rowObj, rowIdx) => {
+        const rawSearchVal = rowObj[selectedUserKeyColId] !== undefined ? String(rowObj[selectedUserKeyColId]) : '';
+        const normSearchVal = normalizeKey(rawSearchVal);
+
+        if (normSearchVal !== '') {
+          nonEmptyKeysCount++;
+          if (isKeyMatchedInAnyFile(normSearchVal)) matchedCount++;
+        }
+
+        bodyHtml += `<tr class="group hover:bg-slate-50/80" data-row-idx="${rowIdx}">`;
+        bodyHtml += `<td class="px-2 py-1.5 text-center border-r border-slate-200 text-slate-400 font-mono text-[11px] bg-slate-50">${rowIdx + 1}</td>`;
+
+        visibleCols.forEach(colDesc => {
+          const alignClass = colDesc.align === 'right' ? 'text-right' : colDesc.align === 'center' ? 'text-center' : 'text-left';
+
+          if (colDesc.kind === 'user') {
+            const cellVal = rowObj[colDesc.userColId] !== undefined ? rowObj[colDesc.userColId] : '';
+            const isKeyCol = colDesc.isSearchKey;
+            bodyHtml += `
+              <td class="p-0 border-r border-slate-200 overflow-hidden ${isKeyCol ? 'bg-blue-50/20' : ''}">
+                <input type="text"
+                  data-row="${rowIdx}"
+                  data-col="${escapeHtml(colDesc.userColId)}"
+                  ${isKeyCol ? 'list="lookupKeySuggestions"' : ''}
+                  placeholder="${isKeyCol ? 'Type or paste key...' : ''}"
+                  value="${escapeHtml(cellVal)}"
+                  class="cell-input w-full h-full px-2.5 py-2 text-xs bg-transparent border-0 focus:outline-none truncate ${alignClass} ${isKeyCol ? 'font-semibold text-slate-900' : 'text-slate-700'}" />
+              </td>
+            `;
+          } else {
+            const res = evaluateExtractedColumnForKey(colDesc, normSearchVal, notFoundText);
+            let cellStyle = 'bg-emerald-50/30 text-slate-400';
+
+            if (!res.empty) {
+              if (res.found) {
+                cellStyle = `${colDesc.theme.cellBg} text-slate-900 font-medium`;
+              } else {
+                cellStyle = 'bg-amber-50/70 text-amber-700 italic';
+              }
+            }
+
+            const titleAttr = res.matchedFileLabel
+              ? ` title="${escapeHtml(res.text)} (Matched from ${escapeHtml(res.matchedFileLabel)})"`
+              : ` title="${escapeHtml(res.text)}"`;
+            bodyHtml += `
+              <td class="px-2.5 py-2 border-r border-emerald-100 truncate ${alignClass} ${cellStyle}"
+                data-extracted-cell="${escapeHtml(colDesc.colKey)}"${titleAttr}>
+                ${escapeHtml(res.text)}
+              </td>
+            `;
+          }
+        });
+
+        // Delete Row Button
+        bodyHtml += `
+          <td class="px-2 py-1.5 text-center">
+            <button type="button" data-delete-row="${rowIdx}" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-1" title="Remove row">✕</button>
+          </td>
+        `;
+        bodyHtml += `</tr>`;
+      });
+
+      tbody.innerHTML = bodyHtml;
+
+      const extractedCount = visibleCols.filter(c => c.kind === 'extracted').length;
+      const hiddenCount = allCols.length - visibleCols.length;
+      document.getElementById('lookupMatchSummary').innerHTML =
+        `Matched <span class="font-bold text-emerald-700">${matchedCount}</span> of <span class="font-bold text-slate-700">${nonEmptyKeysCount}</span> search keys across <span class="font-bold text-indigo-700">${lookupSources.length}</span> file(s) (${extractedCount} lookup col(s) shown${hiddenCount > 0 ? `, ${hiddenCount} hidden` : ''}).`;
+      document.getElementById('tableFooterStats').textContent =
+        `${userRows.length} Rows | ${visibleCols.length} Visible Column(s) in Arranged Order (${userColumns.length} Input + ${extractedCount} Extracted)`;
+
+      attachGridEventListeners();
+    }
+
+    // Update only the extracted cells in-place while typing so the user never loses input focus
+    function updateRowExtractedCellsInPlace(rowIdx) {
+      const tr = document.querySelector(`tr[data-row-idx="${rowIdx}"]`);
+      if (!tr) return;
+
+      const visibleCols = getUnifiedResultantColumns(false);
+      const notFoundText = document.getElementById('notFoundInput').value;
+      const rawSearchVal = userRows[rowIdx][selectedUserKeyColId] || '';
+      const normSearchVal = normalizeKey(rawSearchVal);
+
+      visibleCols.forEach(colDesc => {
+        if (colDesc.kind !== 'extracted') return;
+        const td = tr.querySelector(`td[data-extracted-cell="${CSS.escape(colDesc.colKey)}"]`);
+        if (!td) return;
+        const alignClass = colDesc.align === 'right' ? 'text-right' : colDesc.align === 'center' ? 'text-center' : 'text-left';
+        const res = evaluateExtractedColumnForKey(colDesc, normSearchVal, notFoundText);
+        td.textContent = res.text;
+        if (res.empty) {
+          td.className = `px-2.5 py-2 border-r border-emerald-100 truncate ${alignClass} bg-emerald-50/30 text-slate-400`;
+        } else if (res.found) {
+          td.className = `px-2.5 py-2 border-r border-emerald-100 truncate ${alignClass} ${colDesc.theme.cellBg} text-slate-900 font-medium`;
+        } else {
+          td.className = `px-2.5 py-2 border-r border-emerald-100 truncate ${alignClass} bg-amber-50/70 text-amber-700 italic`;
+        }
+      });
+
+      // Also refresh summary counter quietly
+      let matchedCount = 0;
+      let nonEmptyKeysCount = 0;
+      userRows.forEach(rowObj => {
+        const norm = normalizeKey(rowObj[selectedUserKeyColId]);
+        if (norm !== '') {
+          nonEmptyKeysCount++;
+          if (isKeyMatchedInAnyFile(norm)) matchedCount++;
+        }
+      });
+      const extractedCount = visibleCols.filter(c => c.kind === 'extracted').length;
+      document.getElementById('lookupMatchSummary').innerHTML =
+        `Matched <span class="font-bold text-emerald-700">${matchedCount}</span> of <span class="font-bold text-slate-700">${nonEmptyKeysCount}</span> search keys across <span class="font-bold text-indigo-700">${lookupSources.length}</span> file(s) (${extractedCount} column(s) extracted).`;
+    }
+
+    function attachGridEventListeners() {
+      // Cell typing listeners
+      document.querySelectorAll('.cell-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const rIdx = parseInt(e.target.getAttribute('data-row'), 10);
+          const colId = e.target.getAttribute('data-col');
+          userRows[rIdx][colId] = e.target.value;
+
+          if (colId === selectedUserKeyColId && document.getElementById('liveAutoLookupToggle').checked) {
+            updateRowExtractedCellsInPlace(rIdx);
+          }
+        });
+      });
+
+      // Unified Column rename listeners (works for BOTH user input columns & extracted lookup columns!)
+      document.querySelectorAll('input[data-col-rename-unified]').forEach(input => {
+        input.addEventListener('mousedown', (e) => e.stopPropagation());
+        input.addEventListener('change', (e) => {
+          const colKey = e.target.getAttribute('data-col-rename-unified');
+          const newName = e.target.value.trim();
+          if (!newName) return;
+
+          columnCustomLabels[colKey] = newName;
+          if (colKey.startsWith('user:')) {
+            const userColId = colKey.slice(5);
+            const colObj = userColumns.find(c => c.id === userColId);
+            if (colObj) {
+              colObj.name = newName;
+              syncUserKeyColumnDropdown();
+            }
+          }
+          showToast(`Renamed column header to "${newName}"`, 'info');
+        });
+      });
+
+      // 1-Click Left / Right Column Move Buttons
+      document.querySelectorAll('button[data-move-col]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const colKey = btn.getAttribute('data-move-col');
+          const dir = btn.getAttribute('data-move-dir');
+          moveColumnInOrder(colKey, dir);
+        });
+      });
+
+      // Drag-and-Drop Column Header Reordering
+      const headerCells = document.querySelectorAll('th[data-col-key]');
+      headerCells.forEach(th => {
+        th.addEventListener('dragstart', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.classList.contains('col-resize-handle')) {
+            e.preventDefault();
+            return;
+          }
+          draggedColKey = th.getAttribute('data-col-key');
+          th.classList.add('dragging-col');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        th.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          const targetKey = th.getAttribute('data-col-key');
+          if (!draggedColKey || targetKey === draggedColKey) return;
+          const rect = th.getBoundingClientRect();
+          const isRightHalf = (e.clientX - rect.left) > rect.width / 2;
+          th.classList.toggle('drag-over-right', isRightHalf);
+          th.classList.toggle('drag-over-left', !isRightHalf);
+        });
+
+        th.addEventListener('dragleave', () => {
+          th.classList.remove('drag-over-left', 'drag-over-right');
+        });
+
+        th.addEventListener('drop', (e) => {
+          e.preventDefault();
+          th.classList.remove('drag-over-left', 'drag-over-right');
+          const targetKey = th.getAttribute('data-col-key');
+          if (!draggedColKey || !targetKey || draggedColKey === targetKey) return;
+
+          getUnifiedResultantColumns(true);
+          const fromIdx = displayColumnOrder.indexOf(draggedColKey);
+          let toIdx = displayColumnOrder.indexOf(targetKey);
+          if (fromIdx === -1 || toIdx === -1) return;
+
+          const rect = th.getBoundingClientRect();
+          const dropAfter = (e.clientX - rect.left) > rect.width / 2;
+          displayColumnOrder.splice(fromIdx, 1);
+          toIdx = displayColumnOrder.indexOf(targetKey);
+          if (dropAfter) toIdx++;
+          displayColumnOrder.splice(toIdx, 0, draggedColKey);
+
+          draggedColKey = null;
+          renderInteractiveGrid();
+          showToast('Column order updated!', 'info');
+        });
+
+        th.addEventListener('dragend', () => {
+          draggedColKey = null;
+          headerCells.forEach(cell => cell.classList.remove('dragging-col', 'drag-over-left', 'drag-over-right'));
+        });
+      });
+
+      // Interactive Column Width Drag Resize Handle + Double-Click Auto-Fit
+      document.querySelectorAll('.col-resize-handle').forEach(handle => {
+        const colKey = handle.getAttribute('data-resize-col');
+
+        handle.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          autoFitSingleColumnWidth(colKey);
+          renderInteractiveGrid();
+          showToast('Column auto-fitted to content!', 'info');
+        });
+
+        handle.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const startX = e.clientX;
+          const colEl = document.querySelector(`col[data-colgroup-key="${CSS.escape(colKey)}"]`);
+          const gridTable = document.getElementById('interactiveGrid');
+          const widthLabel = document.querySelector(`[data-width-label="${CSS.escape(colKey)}"]`);
+          const tooltip = document.getElementById('resizeTooltip');
+
+          const startWidth = columnWidths[colKey] || (colEl ? parseInt(colEl.style.width, 10) : 165);
+          const initialTableWidth = parseInt(gridTable.style.width, 10) || gridTable.offsetWidth;
+
+          handle.classList.add('resizing');
+          tooltip.classList.remove('hidden');
+          tooltip.style.left = `${e.clientX + 12}px`;
+          tooltip.style.top = `${e.clientY - 28}px`;
+          tooltip.textContent = `${startWidth} px`;
+
+          function onMouseMove(moveEvt) {
+            const deltaX = moveEvt.clientX - startX;
+            const newWidth = Math.max(75, Math.min(600, startWidth + deltaX));
+            columnWidths[colKey] = newWidth;
+
+            if (colEl) {
+              colEl.style.width = `${newWidth}px`;
+              colEl.style.minWidth = `${newWidth}px`;
+            }
+            if (widthLabel) {
+              widthLabel.textContent = `${newWidth}px`;
+            }
+            gridTable.style.width = `${initialTableWidth + (newWidth - startWidth)}px`;
+
+            tooltip.style.left = `${moveEvt.clientX + 12}px`;
+            tooltip.style.top = `${moveEvt.clientY - 28}px`;
+            tooltip.textContent = `${newWidth} px`;
+          }
+
+          function onMouseUp() {
+            handle.classList.remove('resizing');
+            tooltip.classList.add('hidden');
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          }
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        });
+      });
+
+      // Delete column listeners
+      document.querySelectorAll('button[data-col-delete]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const colId = btn.getAttribute('data-col-delete');
+          if (userColumns.length <= 1) return;
+          userColumns = userColumns.filter(c => c.id !== colId);
+          if (selectedUserKeyColId === colId) {
+            selectedUserKeyColId = userColumns[0].id;
+          }
+          renderInteractiveGrid();
+        });
+      });
+
+      // Delete row listeners
+      document.querySelectorAll('button[data-delete-row]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const rIdx = parseInt(btn.getAttribute('data-delete-row'), 10);
+          userRows.splice(rIdx, 1);
+          if (userRows.length === 0) {
+            userRows.push({});
+          }
+          renderInteractiveGrid();
+        });
+      });
+    }
+
+    /*************************************************************************
+     * ARRANGE, RESIZE & PRINT STUDIO MODAL LOGIC
+     *************************************************************************/
+    const layoutStudioModal = document.getElementById('layoutStudioModal');
+
+    function openLayoutStudio() {
+      renderStudioColumnsList();
+      layoutStudioModal.classList.remove('hidden');
+    }
+
+    function closeLayoutStudio() {
+      layoutStudioModal.classList.add('hidden');
+      renderInteractiveGrid();
+    }
+
+    document.getElementById('openLayoutStudioHeaderBtn').addEventListener('click', openLayoutStudio);
+    document.getElementById('openLayoutStudioBtn').addEventListener('click', openLayoutStudio);
+    document.getElementById('closeLayoutStudioBtn').addEventListener('click', closeLayoutStudio);
+    document.getElementById('doneLayoutStudioBtn').addEventListener('click', closeLayoutStudio);
+
+    document.getElementById('autoFitAllColsToolbarBtn').addEventListener('click', autoFitAllColumnWidths);
+    document.getElementById('studioAutoFitAllBtn').addEventListener('click', autoFitAllColumnWidths);
+
+    document.getElementById('studioEqualWidthsBtn').addEventListener('click', () => {
+      const allCols = getUnifiedResultantColumns(true);
+      allCols.forEach(c => {
+        columnWidths[c.colKey] = 160;
+      });
+      renderStudioColumnsList();
+      renderInteractiveGrid();
+      showToast('Set all columns to equal 160px width.', 'info');
+    });
+
+    document.getElementById('studioCompactWidthsBtn').addEventListener('click', () => {
+      const allCols = getUnifiedResultantColumns(true);
+      allCols.forEach(c => {
+        autoFitSingleColumnWidth(c.colKey);
+        columnWidths[c.colKey] = Math.max(80, Math.round((columnWidths[c.colKey] || 140) * 0.82));
+      });
+      renderStudioColumnsList();
+      renderInteractiveGrid();
+      showToast('Applied compact print widths across all columns!', 'success');
+    });
+
+    function resetColumnOrderAndWidths() {
+      displayColumnOrder = [];
+      columnWidths = {};
+      columnCustomLabels = {};
+      columnAlignments = {};
+      hiddenColumnsForPrint.clear();
+      renderInteractiveGrid();
+      if (!layoutStudioModal.classList.contains('hidden')) {
+        renderStudioColumnsList();
+      }
+      showToast('Reset column order, labels, and widths to defaults.', 'info');
+    }
+
+    document.getElementById('studioResetOrderBtn').addEventListener('click', resetColumnOrderAndWidths);
+    document.getElementById('resetColLayoutQuickBtn').addEventListener('click', resetColumnOrderAndWidths);
+
+    function renderStudioColumnsList() {
+      const container = document.getElementById('studioColumnsList');
+      const allCols = getUnifiedResultantColumns(true);
+
+      if (allCols.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 p-4 text-center">No columns available.</p>`;
+        return;
+      }
+
+      container.innerHTML = allCols.map((col, idx) => {
+        const isFirst = idx === 0;
+        const isLast = idx === allCols.length - 1;
+        const badgeStyle = col.kind === 'user'
+          ? (col.isSearchKey ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700')
+          : `${col.theme.badgeBg} ${col.theme.badgeText}`;
+
+        return `
+          <div class="p-2.5 rounded-lg border ${col.hidden ? 'bg-slate-100/70 border-slate-200 opacity-60' : 'bg-slate-50/70 border-slate-200'} flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-xs">
+            <!-- Order & Move Controls -->
+            <div class="flex items-center gap-1">
+              <span class="w-6 h-6 rounded bg-slate-200 text-slate-700 font-mono font-bold text-[11px] flex items-center justify-center">
+                ${idx + 1}
+              </span>
+              <div class="flex flex-col gap-0.5">
+                <button type="button" data-studio-move="${escapeHtml(col.colKey)}" data-dir="left" ${isFirst ? 'disabled' : ''}
+                  class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] hover:bg-blue-50 disabled:opacity-30" title="Move Up">▲</button>
+                <button type="button" data-studio-move="${escapeHtml(col.colKey)}" data-dir="right" ${isLast ? 'disabled' : ''}
+                  class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] hover:bg-blue-50 disabled:opacity-30" title="Move Down">▼</button>
+              </div>
+            </div>
+
+            <!-- Source Badge & Editable Header Name -->
+            <div class="flex-1 min-w-[150px] flex flex-col gap-1">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${badgeStyle}">
+                  ${escapeHtml(col.badgeText)}
+                </span>
+                <span class="text-[10px] text-slate-400 truncate">Orig: ${escapeHtml(col.origHeader)}</span>
+              </div>
+              <input type="text" data-studio-rename="${escapeHtml(col.colKey)}" value="${escapeHtml(col.displayHeader)}"
+                class="w-full rounded border border-slate-300 px-2 py-1 text-xs font-semibold bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                placeholder="Column header title..." />
+            </div>
+
+            <!-- Width (px) Slider + Number Box -->
+            <div class="flex items-center gap-1.5">
+              <div class="flex flex-col items-end">
+                <label class="text-[10px] font-semibold text-slate-500">Width (px)</label>
+                <div class="flex items-center gap-1">
+                  <input type="range" min="75" max="480" value="${col.width}" data-studio-width-range="${escapeHtml(col.colKey)}"
+                    class="w-20 accent-blue-600 cursor-pointer" />
+                  <input type="number" min="75" max="600" value="${col.width}" data-studio-width-num="${escapeHtml(col.colKey)}"
+                    class="w-14 rounded border border-slate-300 px-1.5 py-1 text-xs font-mono text-center bg-white" />
+                </div>
+              </div>
+
+              <!-- Text Alignment -->
+              <div class="flex flex-col">
+                <label class="text-[10px] font-semibold text-slate-500">Align</label>
+                <select data-studio-align="${escapeHtml(col.colKey)}" class="rounded border border-slate-300 px-1.5 py-1 text-[11px] bg-white font-medium">
+                  <option value="left" ${col.align === 'left' ? 'selected' : ''}>Left</option>
+                  <option value="center" ${col.align === 'center' ? 'selected' : ''}>Center</option>
+                  <option value="right" ${col.align === 'right' ? 'selected' : ''}>Right</option>
+                </select>
+              </div>
+
+              <!-- Show / Hide in Print & Table -->
+              <div class="flex flex-col items-center pl-1">
+                <label class="text-[10px] font-semibold text-slate-500">Show</label>
+                <input type="checkbox" data-studio-visible="${escapeHtml(col.colKey)}" ${!col.hidden ? 'checked' : ''}
+                  class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer mt-1" />
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach listeners inside Studio list
+      container.querySelectorAll('button[data-studio-move]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const colKey = btn.getAttribute('data-studio-move');
+          const dir = btn.getAttribute('data-dir');
+          moveColumnInOrder(colKey, dir);
+        });
+      });
+
+      container.querySelectorAll('input[data-studio-rename]').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const colKey = e.target.getAttribute('data-studio-rename');
+          const val = e.target.value;
+          columnCustomLabels[colKey] = val;
+          if (colKey.startsWith('user:')) {
+            const userColId = colKey.slice(5);
+            const uCol = userColumns.find(c => c.id === userColId);
+            if (uCol && val.trim()) uCol.name = val.trim();
+          }
+          renderInteractiveGrid();
+        });
+      });
+
+      container.querySelectorAll('input[data-studio-width-range]').forEach(rng => {
+        rng.addEventListener('input', (e) => {
+          const colKey = e.target.getAttribute('data-studio-width-range');
+          const w = parseInt(e.target.value, 10) || 160;
+          columnWidths[colKey] = w;
+          const numBox = container.querySelector(`input[data-studio-width-num="${CSS.escape(colKey)}"]`);
+          if (numBox) numBox.value = w;
+          renderInteractiveGrid();
+        });
+      });
+
+      container.querySelectorAll('input[data-studio-width-num]').forEach(num => {
+        num.addEventListener('change', (e) => {
+          const colKey = e.target.getAttribute('data-studio-width-num');
+          const w = Math.max(75, Math.min(600, parseInt(e.target.value, 10) || 160));
+          columnWidths[colKey] = w;
+          const rng = container.querySelector(`input[data-studio-width-range="${CSS.escape(colKey)}"]`);
+          if (rng) rng.value = Math.min(480, w);
+          renderInteractiveGrid();
+        });
+      });
+
+      container.querySelectorAll('select[data-studio-align]').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const colKey = e.target.getAttribute('data-studio-align');
+          columnAlignments[colKey] = e.target.value;
+          renderInteractiveGrid();
+        });
+      });
+
+      container.querySelectorAll('input[data-studio-visible]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const colKey = e.target.getAttribute('data-studio-visible');
+          if (e.target.checked) hiddenColumnsForPrint.delete(colKey);
+          else hiddenColumnsForPrint.add(colKey);
+          renderStudioColumnsList();
+          renderInteractiveGrid();
+        });
+      });
+    }
+
+    /*************************************************************************
+     * INTERACTIVE TABLE CONTROLS (Quick Add, Add Rows/Cols, Paste, Upload Main)
+     *************************************************************************/
+    function appendKeyToUserTable(keyString) {
+      const clean = String(keyString || '').trim();
+      if (!clean) return;
+
+      const emptyRow = userRows.find(r => !r[selectedUserKeyColId] || String(r[selectedUserKeyColId]).trim() === '');
+      if (emptyRow) {
+        emptyRow[selectedUserKeyColId] = clean;
+      } else {
+        const newRow = {};
+        newRow[selectedUserKeyColId] = clean;
+        userRows.push(newRow);
+      }
+      renderInteractiveGrid();
+      showToast(`Added "${clean}" to your table and matched across loaded files!`, 'success');
+    }
+
+    document.getElementById('quickAddBtn').addEventListener('click', () => {
+      const input = document.getElementById('quickSearchInput');
+      if (!input.value.trim()) {
+        showToast('Type or choose a lookup key in the Quick Search box first.', 'warning');
+        return;
+      }
+      appendKeyToUserTable(input.value);
+      input.value = '';
+    });
+
+    document.getElementById('quickSearchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('quickAddBtn').click();
+      }
+    });
+
+    document.getElementById('addRowBtn').addEventListener('click', () => {
+      userRows.push({});
+      renderInteractiveGrid();
+    });
+
+    document.getElementById('add5RowsBtn').addEventListener('click', () => {
+      for (let i = 0; i < 5; i++) userRows.push({});
+      renderInteractiveGrid();
+    });
+
+    document.getElementById('addColBtn').addEventListener('click', () => {
+      const newId = 'col_' + Date.now();
+      userColumns.push({ id: newId, name: `Custom_Col_${userColumns.length + 1}` });
+      renderInteractiveGrid();
+    });
+
+    document.getElementById('clearTableBtn').addEventListener('click', () => {
+      userRows = [{}, {}, {}];
+      renderInteractiveGrid();
+      showToast('Cleared table rows.', 'info');
+    });
+
+    document.getElementById('runLookupNowBtn').addEventListener('click', () => {
+      renderInteractiveGrid();
+      showToast('Multi-file lookup values refreshed!', 'success');
+    });
+
+    document.getElementById('notFoundInput').addEventListener('input', () => {
+      if (document.getElementById('liveAutoLookupToggle').checked) {
+        renderInteractiveGrid();
+      }
+    });
+
+    // Paste Modal Controls
+    const pasteModal = document.getElementById('pasteModal');
+    document.getElementById('openPasteModalBtn').addEventListener('click', () => {
+      pasteModal.classList.remove('hidden');
+      document.getElementById('pasteTextarea').focus();
+    });
+    document.getElementById('closePasteModalBtn').addEventListener('click', () => pasteModal.classList.add('hidden'));
+    document.getElementById('cancelPasteBtn').addEventListener('click', () => pasteModal.classList.add('hidden'));
+
+    document.getElementById('confirmPasteBtn').addEventListener('click', () => {
+      const rawText = document.getElementById('pasteTextarea').value;
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        pasteModal.classList.add('hidden');
+        return;
+      }
+
+      const replaceExisting = document.getElementById('replaceRowsCheckbox').checked;
+      if (replaceExisting) {
+        userRows = [];
+      }
+
+      lines.forEach(line => {
+        const parts = line.split('\t');
+        const newRow = {};
+        newRow[selectedUserKeyColId] = parts[0] ? parts[0].trim() : '';
+        if (parts.length > 1) {
+          let partIdx = 1;
+          userColumns.forEach(col => {
+            if (col.id !== selectedUserKeyColId && partIdx < parts.length) {
+              newRow[col.id] = parts[partIdx].trim();
+              partIdx++;
+            }
+          });
+        }
+        userRows.push(newRow);
+      });
+
+      document.getElementById('pasteTextarea').value = '';
+      pasteModal.classList.add('hidden');
+      renderInteractiveGrid();
+      showToast(`Inserted ${lines.length} row(s) and extracted matching values across files!`, 'success');
+    });
+
+    /*************************************************************************
+     * TABS: SWITCH BETWEEN INTERACTIVE CREATION & UPLOAD MAIN EXCEL FILE
+     *************************************************************************/
+    const tabInteractiveBtn = document.getElementById('tabInteractiveBtn');
+    const tabUploadMainBtn = document.getElementById('tabUploadMainBtn');
+    const uploadMainPanel = document.getElementById('uploadMainPanel');
+
+    tabInteractiveBtn.addEventListener('click', () => {
+      uploadMainPanel.classList.add('hidden');
+      tabInteractiveBtn.className = 'px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white text-blue-700 shadow-sm transition';
+      tabUploadMainBtn.className = 'px-3.5 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+    });
+
+    tabUploadMainBtn.addEventListener('click', () => {
+      uploadMainPanel.classList.remove('hidden');
+      tabUploadMainBtn.className = 'px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white text-blue-700 shadow-sm transition';
+      tabInteractiveBtn.className = 'px-3.5 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+    });
+
+    document.getElementById('mainFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          mainWorkbook = XLSX.read(data, { type: 'array' });
+          const sheetSelect = document.getElementById('mainSheetSelect');
+          sheetSelect.innerHTML = mainWorkbook.SheetNames.map(
+            n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`
+          ).join('');
+          sheetSelect.disabled = false;
+          loadMainSheetIntoInteractiveGrid();
+          showToast(`Loaded Main File "${file.name}" into editor.`, 'success');
+        } catch (err) {
+          showToast('Error reading Main Excel file.', 'warning');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    document.getElementById('mainSheetSelect').addEventListener('change', loadMainSheetIntoInteractiveGrid);
+    document.getElementById('mainHeaderRowInput').addEventListener('change', () => {
+      const idx = Math.max(0, parseInt(document.getElementById('mainHeaderRowInput').value, 10) - 1);
+      applyMainRowsAtHeaderIndex(idx);
+    });
+
+    function loadMainSheetIntoInteractiveGrid() {
+      if (!mainWorkbook) return;
+      const sheetName = document.getElementById('mainSheetSelect').value;
+      const sheet = mainWorkbook.Sheets[sheetName];
+      mainRawSheetRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      const detectedIdx = detectHeaderRowIndex(mainRawSheetRows);
+      const headerInput = document.getElementById('mainHeaderRowInput');
+      headerInput.disabled = false;
+      headerInput.value = detectedIdx + 1;
+      document.getElementById('mainHeaderHint').textContent =
+        detectedIdx > 0 ? `Skipped ${detectedIdx} title row(s)` : 'Header at Row 1';
+
+      applyMainRowsAtHeaderIndex(detectedIdx);
+    }
+
+    function applyMainRowsAtHeaderIndex(headerIdx) {
+      const headers = extractHeadersAtRow(mainRawSheetRows, headerIdx);
+      if (headers.length === 0) return;
+
+      userColumns = headers.map((h, i) => ({ id: `main_col_${i}`, name: h.name, origIndex: h.index }));
+      selectedUserKeyColId = userColumns[0].id;
+
+      userRows = [];
+      for (let r = headerIdx + 1; r < mainRawSheetRows.length; r++) {
+        const rawRow = mainRawSheetRows[r] || [];
+        if (rawRow.every(c => c === null || c === undefined || String(c).trim() === '')) continue;
+        const rowObj = {};
+        userColumns.forEach(uCol => {
+          rowObj[uCol.id] = rawRow[uCol.origIndex] !== undefined ? rawRow[uCol.origIndex] : '';
+        });
+        userRows.push(rowObj);
+      }
+
+      if (userRows.length === 0) userRows.push({});
+      renderInteractiveGrid();
+    }
+
+    /*************************************************************************
+     * EXPORT TO EXCEL (.XLSX), CSV, PRINT & COPY TO CLIPBOARD
+     * Strictly follows user's arranged column order, custom headers & widths!
+     *************************************************************************/
+    function buildMerged2DArrayForExport() {
+      const visibleCols = getUnifiedResultantColumns(false);
+      const notFoundText = document.getElementById('notFoundInput').value;
+
+      const aoa = [];
+      // Header Row in exact arranged order
+      aoa.push(visibleCols.map(c => c.exportHeader));
+
+      // Data Rows in exact arranged order
+      userRows.forEach(rowObj => {
+        const rawSearchVal = rowObj[selectedUserKeyColId] !== undefined ? String(rowObj[selectedUserKeyColId]) : '';
+        const normSearchVal = normalizeKey(rawSearchVal);
+        const hasAnyInput = userColumns.some(c => rowObj[c.id] !== undefined && String(rowObj[c.id]).trim() !== '');
+        if (!hasAnyInput) return;
+
+        const rowVals = visibleCols.map(colDesc => {
+          if (colDesc.kind === 'user') {
+            return rowObj[colDesc.userColId] !== undefined ? rowObj[colDesc.userColId] : '';
+          }
+          const res = evaluateExtractedColumnForKey(colDesc, normSearchVal, notFoundText);
+          return res.text;
+        });
+
+        aoa.push(rowVals);
+      });
+
+      return aoa;
+    }
+
+    document.getElementById('exportExcelBtn').addEventListener('click', () => {
+      const aoa = buildMerged2DArrayForExport();
+      if (aoa.length <= 1) {
+        showToast('Add at least one row with data before exporting.', 'warning');
+        return;
+      }
+      const visibleCols = getUnifiedResultantColumns(false);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      // Preserve the user's resized pixel widths inside the exported Excel file!
+      ws['!cols'] = visibleCols.map(c => ({ wpx: c.width || 150 }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'MultiFile_Lookup_Table');
+      XLSX.writeFile(wb, 'Extracted_MultiFile_Lookup_Result.xlsx');
+      showToast('Downloaded ".xlsx" with your arranged column order and widths!', 'success');
+    });
+
+    function csvEscape(value) {
+      const text = value === null || value === undefined ? '' : String(value);
+      return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    }
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const aoa = buildMerged2DArrayForExport();
+      if (aoa.length <= 1) {
+        showToast('Add at least one row with data before exporting.', 'warning');
+        return;
+      }
+      const csv = '\uFEFF' + aoa.map(row => row.map(csvEscape).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Extracted_MultiFile_Lookup_Result.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Downloaded "Extracted_MultiFile_Lookup_Result.csv"!', 'success');
+    });
+
+    function executeFormattedPrint() {
+      const aoa = buildMerged2DArrayForExport();
+      if (aoa.length <= 1) {
+        showToast('Add at least one row with data before printing.', 'warning');
+        return;
+      }
+
+      const visibleCols = getUnifiedResultantColumns(false);
+      const reportTitle = document.getElementById('printTitleInput').value.trim() || 'Extracted Multi-File Lookup Report';
+      const reportSubtitle = document.getElementById('printSubtitleInput').value.trim();
+      const orientation = document.getElementById('printOrientationSelect').value;
+      const paperSize = document.getElementById('printPaperSizeSelect').value;
+      const fontSize = document.getElementById('printFontSizeSelect').value;
+      const cellPadding = document.getElementById('printPaddingSelect').value;
+      const respectWidths = document.getElementById('printRespectWidthsToggle').checked;
+      const showSerial = document.getElementById('printShowSerialToggle').checked;
+      const zebraRows = document.getElementById('printZebraToggle').checked;
+      const showTimestamp = document.getElementById('printShowTimestampToggle').checked;
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('Please allow pop-ups to print the formatted table.', 'warning');
+        return;
+      }
+
+      // Build proportional <colgroup> percentages from user's resized pixel widths
+      const serialPx = showSerial ? 42 : 0;
+      const totalColsPx = visibleCols.reduce((sum, c) => sum + (c.width || 150), serialPx);
+
+      let colgroupHtml = '<colgroup>';
+      if (showSerial) {
+        const serialPct = ((serialPx / totalColsPx) * 100).toFixed(2);
+        colgroupHtml += `<col style="width:${respectWidths ? serialPct + '%' : '38px'}" />`;
+      }
+      visibleCols.forEach(c => {
+        const pct = (((c.width || 150) / totalColsPx) * 100).toFixed(2);
+        colgroupHtml += `<col style="${respectWidths ? 'width:' + pct + '%' : ''}" />`;
+      });
+      colgroupHtml += '</colgroup>';
+
+      // Build Table Header
+      let theadHtml = '<thead><tr>';
+      if (showSerial) {
+        theadHtml += '<th style="text-align:center;">#</th>';
+      }
+      visibleCols.forEach((c, idx) => {
+        const align = c.align || 'left';
+        const headerTitle = aoa[0][idx];
+        theadHtml += `<th style="text-align:${align};">${escapeHtml(headerTitle)}</th>`;
+      });
+      theadHtml += '</tr></thead>';
+
+      // Build Table Body
+      let tbodyHtml = '<tbody>';
+      aoa.slice(1).forEach((row, rIdx) => {
+        tbodyHtml += '<tr>';
+        if (showSerial) {
+          tbodyHtml += `<td style="text-align:center;color:#555;font-family:monospace;">${rIdx + 1}</td>`;
+        }
+        row.forEach((cellVal, cIdx) => {
+          const align = visibleCols[cIdx] ? (visibleCols[cIdx].align || 'left') : 'left';
+          tbodyHtml += `<td style="text-align:${align};">${escapeHtml(cellVal)}</td>`;
+        });
+        tbodyHtml += '</tr>';
+      });
+      tbodyHtml += '</tbody>';
+
+      printWindow.document.write(
+        '<!DOCTYPE html><html><head><title>' + escapeHtml(reportTitle) + '</title><style>' +
+        'body{font-family:"Inter",Arial,sans-serif;padding:14px;color:#111;margin:0}' +
+        '.header-box{margin-bottom:10px;border-bottom:2px solid #1e293b;padding-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end}' +
+        'h2{font-size:16px;margin:0;color:#0f172a}' +
+        '.subtitle{font-size:11px;color:#334155;margin-top:2px;font-weight:600}' +
+        '.meta{font-size:9.5px;color:#64748b;text-align:right}' +
+        'table{border-collapse:collapse;width:100%;font-size:' + fontSize + ';table-layout:' + (respectWidths ? 'fixed' : 'auto') + '}' +
+        'th,td{border:1px solid #94a3b8;padding:' + cellPadding + ';overflow-wrap:anywhere;word-break:break-word;vertical-align:top}' +
+        'th{background:#e2e8f0;color:#0f172a;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+        (zebraRows ? 'tbody tr:nth-child(even){background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}' : '') +
+        'tr{break-inside:avoid}thead{display:table-header-group}' +
+        '@page{size:' + paperSize + ' ' + orientation + ';margin:9mm}@media print{body{padding:0}}' +
+        '</style></head><body>' +
+        '<div class="header-box"><div><h2>' + escapeHtml(reportTitle) + '</h2>' +
+        (reportSubtitle ? '<div class="subtitle">' + escapeHtml(reportSubtitle) + '</div>' : '') +
+        '</div>' +
+        (showTimestamp
+          ? '<div class="meta">Printed: ' + escapeHtml(new Date().toLocaleString()) + '<br>' +
+            (aoa.length - 1) + ' Row(s) · ' + visibleCols.length + ' Arranged Column(s)</div>'
+          : '') +
+        '</div>' +
+        '<table>' + colgroupHtml + theadHtml + tbodyHtml + '</table>' +
+        '<script>window.onload=function(){window.print();};<\/script></body></html>'
+      );
+      printWindow.document.close();
+    }
+
+    document.getElementById('printTableBtn').addEventListener('click', executeFormattedPrint);
+    document.getElementById('studioPrintNowBtn').addEventListener('click', executeFormattedPrint);
+
+    document.getElementById('copyTableBtn').addEventListener('click', () => {
+      const aoa = buildMerged2DArrayForExport();
+      const tsv = aoa.map(row => row.join('\t')).join('\n');
+      const tempArea = document.createElement('textarea');
+      tempArea.value = tsv;
+      document.body.appendChild(tempArea);
+      tempArea.select();
+      document.execCommand('copy');
+      tempArea.remove();
+      showToast('Copied arranged table to clipboard! Paste directly into Excel.', 'success');
+    });
+
+    // Start with an empty workspace; users load their own lookup files.
+    window.addEventListener('DOMContentLoaded', () => {
+      userRows = [{}, {}, {}];
+      refreshAllLookupUI();
+    });
+  </script>
+</body>
+</html>
